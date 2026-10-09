@@ -19,6 +19,7 @@ public final class TestMain {
         StageRepositoryTest.run();
         GameMapTest.run();
         GameEngineTest.run();
+        ItemGimmickTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

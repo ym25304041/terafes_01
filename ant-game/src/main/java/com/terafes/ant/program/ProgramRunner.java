@@ -57,7 +57,8 @@ public final class ProgramRunner {
 
             stepCount++;
             Position pos = engine.getPosition();
-            trace.add(new TraceStep(stepCount, block.id(), result, pos.x(), pos.y(), engine.getFacing()));
+            trace.add(new TraceStep(stepCount, block.id(), result, pos.x(), pos.y(), engine.getFacing(),
+                    engine.getLastEvents(), engine.hasSupply(), engine.hasWeapon()));
 
             // クリアか失敗が決まったら、残りのブロックは実行しない
             if (engine.getStatus() != GameStatus.PLAYING) {

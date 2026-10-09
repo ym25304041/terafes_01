@@ -14,11 +14,13 @@ public enum ActionResult {
     JUMPED,
     /** 移動先が壁だったので動かなかった */
     BLOCKED_WALL,
+    /** 移動先が閉じたドアだったので動かなかった */
+    BLOCKED_DOOR,
     /** 移動先がマップ外だったので動かなかった */
     BLOCKED_OUT_OF_MAP,
     /** ジャンプに失敗した: 前方1マスが落とし穴ではなかった */
     JUMP_FAILED_NO_PIT,
-    /** ジャンプに失敗した: 着地点が壁またはマップ外だった */
+    /** ジャンプに失敗した: 着地点が壁・閉じたドア・マップ外のどれかだった */
     JUMP_FAILED_BLOCKED,
     /** 落とし穴に落ちた（ゲームオーバー） */
     FELL_INTO_PIT,
