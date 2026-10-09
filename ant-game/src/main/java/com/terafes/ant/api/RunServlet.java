@@ -59,7 +59,15 @@ public class RunServlet extends HttpServlet {
         try {
             RunRequest request = RunRequest.parse(body);
 
-            Optional<Stage> stage = StageRepository.findById(request.stageId());
+            Optional<Stage> stage;
+            try {
+                stage = StageRepository.findById(request.stageId());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                // ステージファイル側の問題。詳細はサーバーのログだけに残し、クライアントには固定コードを返す
+                getServletContext().log("ステージの読み込みに失敗: " + e.getMessage());
+                ApiSupport.writeError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "STAGE_DATA_ERROR");
+                return;
+            }
             if (stage.isEmpty()) {
                 ApiSupport.writeError(resp, HttpServletResponse.SC_NOT_FOUND, "STAGE_NOT_FOUND");
                 return;

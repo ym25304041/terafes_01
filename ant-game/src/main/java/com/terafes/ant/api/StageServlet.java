@@ -37,7 +37,15 @@ public class StageServlet extends HttpServlet {
             return;
         }
 
-        Optional<Stage> found = StageRepository.findById(id);
+        Optional<Stage> found;
+        try {
+            found = StageRepository.findById(id);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // ステージファイル側の問題。詳細はサーバーのログだけに残す
+            getServletContext().log("ステージの読み込みに失敗: " + e.getMessage());
+            ApiSupport.writeError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "STAGE_DATA_ERROR");
+            return;
+        }
         if (found.isEmpty()) {
             ApiSupport.writeError(resp, HttpServletResponse.SC_NOT_FOUND, "STAGE_NOT_FOUND");
             return;
