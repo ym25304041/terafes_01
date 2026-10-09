@@ -1,5 +1,9 @@
 package com.terafes.ant;
 
+import com.terafes.ant.game.StageRepository;
+
+import java.nio.file.Path;
+
 /**
  * すべてのテストを実行するメインクラスです。
  * 失敗が1つでもあれば、終了コード 1 で終わります。
@@ -8,7 +12,11 @@ package com.terafes.ant;
  */
 public final class TestMain {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        // ステージファイルの場所を設定する（test.bat はプロジェクト直下から実行される）
+        StageRepository.setDirectory(Path.of("src/main/webapp/WEB-INF/stages"));
+
+        StageRepositoryTest.run();
         GameMapTest.run();
         GameEngineTest.run();
         ProgramRunnerTest.run();

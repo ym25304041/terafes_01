@@ -17,6 +17,29 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - ジャンプ: 前方1マスが落とし穴のときだけ成功し2マス先へ着地。穴でない／着地点が壁・マップ外なら失敗（その場から動かない）。着地点が穴なら落下、ゴールならクリア。
 - 最大100ステップ。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。
 
+## ステージファイル（マップの編集方法）
+マップは `src/main/webapp/WEB-INF/stages/stage<番号>.txt` に置きます。ファイルを追加・編集するだけで、プログラムの修正は不要です。
+
+```
+; 「;」で始まる行はコメント、空行は無視
+name: 穴をジャンプ！
+map:
+....#....
+.##.#.##.
+S...P...G
+.##.#.##.
+....#....
+```
+- 記号: `.`道 `#`壁 `P`落とし穴 `G`ゴール `S`スタート（1つだけ）。5行×9文字。
+- 文字コードは UTF-8。ファイル名の数字がステージ番号になる。
+- リクエストのたびに読み込むので、**起動中の Tomcat でも `webapps\ant-game\WEB-INF\stages\` のファイルを書き換えれば再起動なしで反映**される。ただし再デプロイ（WAR の置き直し）をすると `src` 側の内容に戻るので、恒久的な変更は `src` 側のファイルに行うこと。
+- 書き方に誤りがあると API は `500 STAGE_DATA_ERROR` を返し、原因は Tomcat のログ（`localhost.*.log`）に出る。起動時にも全ファイルを検査してログに出す。
+- Tomcat の外の好きなフォルダに置きたい場合は、`web.xml` に次を追加する。
+  ```xml
+  <context-param><param-name>stageDir</param-name><param-value>D:\ant\stages</param-value></context-param>
+  ```
+- 動作確認ページ（`index.html`）のステージ選択は固定の2つです。ステージを増やしたら `<option>` も追加してください。
+
 ## API
 ### `GET api/stage?id=1`
 `{"id":1,"name":"…","rows":["…5行…"],"start":{"x":0,"y":2}}`
@@ -43,7 +66,7 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 ## ソース構成
 ```
 src/main/java/com/terafes/ant/
-  game/     Direction, Position, CellType, GameMap, GameEngine, Stage, StageRepository …ゲームのルール
+  game/     Direction, Position, CellType, GameMap, GameEngine, Stage, StageRepository(ファイル読込) …ゲームのルール
   program/  Block, BlockType, ProgramRunner, RunResult, TraceStep …プログラムの実行
   json/     JsonParser, JsonWriter …自作の最小JSON処理
   api/      RunServlet, StageServlet, RunRequest, SecurityHeadersFilter …HTTP入出力と入力検証
