@@ -28,10 +28,12 @@ final class StageRepositoryTest {
     static void run() throws IOException {
         T.group("StageRepository: 標準のステージファイル（WEB-INF/stages）");
         List<Stage> all = StageRepository.findAll();
-        T.eq("ステージは2つ", 2, all.size());
+        T.eq("ステージは4つ", 4, all.size());
         T.eq("先頭はステージ1", 1, all.get(0).id());
         T.eq("ステージ1の名前", "まっすぐ進もう", all.get(0).name());
         T.eq("ステージ2の名前", "穴をジャンプ！", all.get(1).name());
+        T.eq("ステージ3の名前", "扉の向こうへ", all.get(2).name());
+        T.eq("ステージ4の名前", "2つの扉", all.get(3).name());
         T.eq("ステージ2のマップは5行", 5, all.get(1).rows().size());
         T.check("存在しない番号は空", StageRepository.findById(99).isEmpty());
         T.check("0以下の番号は空", StageRepository.findById(0).isEmpty());

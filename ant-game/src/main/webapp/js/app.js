@@ -19,6 +19,13 @@ const FAIL_MESSAGE = {
   NOT_REACHED_GOAL: 'ゴールに着けませんでした。',
   STEP_LIMIT_EXCEEDED: '実行回数の上限(100回)を超えたので止めました。'
 };
+// 実行結果のうち、画面にメッセージを出したいもの
+const RESULT_NOTE = {
+  BLOCKED_DOOR: 'ドアが閉じています',
+  BLOCKED_WALL: '壁があります',
+  JUMP_FAILED_NO_PIT: 'ジャンプできません(前が穴ではありません)',
+  JUMP_FAILED_BLOCKED: 'ジャンプできません(着地点に進めません)'
+};
 const ERROR_MESSAGE = {
   STAGE_NOT_FOUND: 'ステージが見つかりません。'
 };
@@ -32,9 +39,12 @@ const programListEl = document.getElementById('programList');
 const messageEl = document.getElementById('message');
 const runButton = document.getElementById('runButton');
 const clearButton = document.getElementById('clearButton');
+const inventoryEl = document.getElementById('inventory');
 
 // 状態
 let stage = null;          // 読み込んだステージ情報
+let view = [];             // 表示用のマップ(2次元配列)。アイテム取得やドア開放で書き換える
+let inventory = { supply: false, weapon: false }; // 画面に表示する持ち物
 let program = [];          // ブロックの配列 [{id, type, dir}]
 let nextBlockNo = 1;       // ブロックIDの連番
 let playing = false;       // 再生中は操作を無効にする
@@ -45,22 +55,57 @@ function showMessage(text, kind) {
   messageEl.className = kind || '';
 }
 
+/**
+ * 表示用マップ(view)の記号を、画面に出す絵文字に変換する。
+ *   M=物資 W=武器 a〜e=スイッチ A〜E=閉じたドア
+ *   '!'=作動済みスイッチ '_'=開いたドア (この2つは画面専用の記号)
+ */
+function symbolOf(ch) {
+  if (ch === 'P') { return '🕳'; }
+  if (ch === 'G') { return '🏁'; }
+  if (ch === 'M') { return '📦'; }
+  if (ch === 'W') { return '⚔'; }
+  if (ch >= 'a' && ch <= 'e') { return '🔘' + ch; }
+  if (ch >= 'A' && ch <= 'E') { return '🚪' + ch; }
+  if (ch === '!') { return '✅'; }
+  if (ch === '_') { return '▫'; }
+  return '';
+}
+
+/** 表示用マップを、サーバーから受け取ったステージの初期状態に戻す。 */
+function resetView() {
+  view = stage.rows.map((row) => row.split(''));
+  inventory = { supply: false, weapon: false };
+}
+
 /** マップを描く。antPos があればその位置にアリを表示する。 */
 function drawGrid(antPos) {
   gridEl.textContent = ''; // 中身を空にする
-  stage.rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      const ch = row[x];
+  view.forEach((row, y) => {
+    row.forEach((ch, x) => {
       const cell = document.createElement('div');
       cell.className = 'cell';
       if (ch === '#') { cell.classList.add('wall'); }
-      if (ch === 'P') { cell.classList.add('pit'); cell.textContent = '🕳'; }
-      if (ch === 'G') { cell.classList.add('goal'); cell.textContent = '🏁'; }
+      if (ch === 'P') { cell.classList.add('pit'); }
+      if (ch === 'G') { cell.classList.add('goal'); }
+      if ((ch >= 'A' && ch <= 'E') || ch === '_') { cell.classList.add('door'); }
+      cell.textContent = symbolOf(ch);
       if (antPos && antPos.x === x && antPos.y === y) {
         cell.textContent = '🐜';
       }
       gridEl.appendChild(cell);
-    }
+    });
+  });
+  inventoryEl.textContent = '持ち物: 物資 ' + (inventory.supply ? '📦あり' : 'なし')
+    + ' / 武器 ' + (inventory.weapon ? '⚔あり' : 'なし');
+}
+
+/** 自動で起きた出来事(取得・スイッチ作動・ドアが開く)を表示用マップに反映する。 */
+function applyEvents(events) {
+  events.forEach((e) => {
+    if (e.type === 'PICKUP') { view[e.y][e.x] = '.'; }
+    if (e.type === 'SWITCH_ON') { view[e.y][e.x] = '!'; }
+    if (e.type === 'DOOR_OPEN') { view[e.y][e.x] = '_'; }
   });
 }
 
@@ -76,6 +121,7 @@ async function loadStage(id) {
   stageNameEl.textContent = data.name;
   program = [];
   renderProgram();
+  resetView();
   drawGrid(data.start);
   showMessage('', '');
 }
@@ -118,6 +164,7 @@ async function runProgram() {
   if (playing || !stage) { return; }
   playing = true;
   showMessage('実行中…', '');
+  resetView();
   drawGrid(stage.start);
   try {
     const res = await fetch('api/run', {
@@ -133,7 +180,10 @@ async function runProgram() {
     // トレースを1ステップずつ再生(ブロックのハイライトとアリの移動)
     for (const t of data.trace) {
       renderProgram(t.blockId);
+      applyEvents(t.events);
+      inventory = t.inventory;
       drawGrid({ x: t.x, y: t.y });
+      if (RESULT_NOTE[t.result]) { showMessage(RESULT_NOTE[t.result], ''); }
       await sleep(400);
     }
     renderProgram();
@@ -142,6 +192,7 @@ async function runProgram() {
     } else {
       showMessage(FAIL_MESSAGE[data.failReason] || '失敗しました。', 'ng');
       await sleep(600);
+      resetView();
       drawGrid(stage.start); // 失敗したら実行前の状態に戻す
     }
   } catch (e) {

@@ -1,5 +1,6 @@
 package com.terafes.ant.api;
 
+import com.terafes.ant.game.GameEvent;
 import com.terafes.ant.json.JsonWriter;
 import com.terafes.ant.program.RunResult;
 import com.terafes.ant.program.TraceStep;
@@ -56,6 +57,11 @@ final class ApiSupport {
             step.put("x", t.x());
             step.put("y", t.y());
             step.put("facing", t.facing());
+            step.put("events", toEventList(t.events()));
+            Map<String, Object> inventory = new LinkedHashMap<>();
+            inventory.put("supply", t.hasSupply());
+            inventory.put("weapon", t.hasWeapon());
+            step.put("inventory", inventory);
             trace.add(step);
         }
         Map<String, Object> body = new LinkedHashMap<>();
@@ -64,5 +70,19 @@ final class ApiSupport {
         body.put("stepCount", result.stepCount());
         body.put("trace", trace);
         return body;
+    }
+
+    /** 自動で起きた出来事のリストを、JSON にできる形に変換します。 */
+    private static List<Object> toEventList(List<GameEvent> events) {
+        List<Object> list = new ArrayList<>();
+        for (GameEvent e : events) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("type", e.type());
+            m.put("item", e.item()); // 取得以外のときは null
+            m.put("x", e.x());
+            m.put("y", e.y());
+            list.add(m);
+        }
+        return list;
     }
 }

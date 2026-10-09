@@ -16,6 +16,10 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - 落とし穴へ通常移動 → 落下して失敗。
 - ジャンプ: 前方1マスが落とし穴のときだけ成功し2マス先へ着地。穴でない／着地点が壁・マップ外なら失敗（その場から動かない）。着地点が穴なら落下、ゴールならクリア。
 - 最大100ステップ。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。
+- **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。物資と武器を別々に1つずつ持てる。同じ種類を持っているときは取得せず床に残す。
+- **スイッチ`a〜e`:** 物資を持って乗ると物資を消費して作動し、同じ記号のドア`A〜E`がすべて開く。物資がなければ何も起きない（通れるマス）。作動済みのスイッチは物資を消費しない。
+- **ドア:** 閉じている間は壁と同じで通れず（`BLOCKED_DOOR`）、ジャンプの着地点にもなれない。一度開いたら開いたまま。
+- 取得・作動はステップ数に数えない。順序は「落下判定 → 取得 → スイッチ → ゴール判定」。
 
 ## ステージファイル（マップの編集方法）
 マップは `src/main/webapp/WEB-INF/stages/stage<番号>.txt` に置きます。ファイルを追加・編集するだけで、プログラムの修正は不要です。
@@ -30,7 +34,8 @@ S...P...G
 .##.#.##.
 ....#....
 ```
-- 記号: `.`道 `#`壁 `P`落とし穴 `G`ゴール `S`スタート（1つだけ）。5行×9文字。
+- 記号: `.`道 `#`壁 `P`落とし穴 `G`ゴール `S`スタート（1つだけ） `M`物資 `W`武器 `a〜e`スイッチ `A〜E`ドア。5行×9文字。
+- スイッチとドアは同じ文字で対応（`a`→`A`）。複数の組、同じ記号の複数配置もOK。片方だけ置くとエラー。アイテムは道の上にのみ置ける。
 - 文字コードは UTF-8。ファイル名の数字がステージ番号になる。
 - リクエストのたびに読み込むので、**起動中の Tomcat でも `webapps\ant-game\WEB-INF\stages\` のファイルを書き換えれば再起動なしで反映**される。ただし再デプロイ（WAR の置き直し）をすると `src` 側の内容に戻るので、恒久的な変更は `src` 側のファイルに行うこと。
 - 書き方に誤りがあると API は `500 STAGE_DATA_ERROR` を返し、原因は Tomcat のログ（`localhost.*.log`）に出る。起動時にも全ファイルを検査してログに出す。
@@ -38,7 +43,7 @@ S...P...G
   ```xml
   <context-param><param-name>stageDir</param-name><param-value>D:\ant\stages</param-value></context-param>
   ```
-- 動作確認ページ（`index.html`）のステージ選択は固定の2つです。ステージを増やしたら `<option>` も追加してください。
+- 動作確認ページ（`index.html`）のステージ選択は固定の4つです。ステージを増やしたら `<option>` も追加してください。
 
 ## API
 ### `GET api/stage?id=1`
@@ -56,11 +61,15 @@ S...P...G
 レスポンス:
 ```json
 { "status": "CLEARED", "failReason": null, "stepCount": 7,
-  "trace": [ {"step":1,"blockId":"b1","result":"MOVED","x":1,"y":2,"facing":"RIGHT"} ] }
+  "trace": [ {"step":1,"blockId":"b1","result":"MOVED","x":1,"y":2,"facing":"RIGHT",
+              "events":[{"type":"PICKUP","item":"SUPPLY","x":1,"y":2}],
+              "inventory":{"supply":true,"weapon":false}} ] }
 ```
 - `status`: `CLEARED` / `FAILED`
 - `failReason`: `FELL_INTO_PIT` / `NOT_REACHED_GOAL` / `STEP_LIMIT_EXCEEDED` / null
-- `result`: `MOVED` `JUMPED` `BLOCKED_WALL` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `FELL_INTO_PIT` `REACHED_GOAL`
+- `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `SWITCH_ON` / `DOOR_OPEN`。x,y は起きたマス（開いたドアはドアの座標）
+- `inventory`: 行動後の持ち物
+- `result`: `MOVED` `JUMPED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `FELL_INTO_PIT` `REACHED_GOAL`
 - エラー: `{"error":"コード"}`（400 / 404 / 413 / 415）
 
 ## ソース構成
@@ -80,5 +89,5 @@ src/test/java/     自作の簡易テスト（TestMain から実行）
 - **SQLインジェクション**: DBを使わないため該当なし（将来DBを使う場合は `PreparedStatement` を使うこと）。
 
 ## 今後の拡張ポイント
-- 敵・アイテム: 地形（`CellType`）とは別のレイヤーとして `GameMap` / `GameEngine` に追加。
+- 敵: アイテムと同様、地形（`CellType`）とは別のレイヤーとして `GameMap` / `GameEngine` に追加。武器の所持は `GameEngine.hasWeapon()` で判定できる。
 - 制御ブロック（もし／繰り返し）: `BlockType` と `Block` を拡張し、`ProgramRunner` でネストを展開しつつ、同じ100ステップ制限を適用。
