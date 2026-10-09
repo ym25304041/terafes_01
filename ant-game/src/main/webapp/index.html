@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>アント・コマンド 動作確認ページ</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <h1>アント・コマンド 動作確認ページ</h1>
+  <p class="note">バックエンド(移動・ジャンプ・ゴール判定)の動作確認用の簡易画面です。</p>
+
+  <section>
+    <label for="stageSelect">ステージ:</label>
+    <select id="stageSelect">
+      <option value="1">ステージ1</option>
+      <option value="2">ステージ2</option>
+    </select>
+    <span id="stageName"></span>
+  </section>
+
+  <!-- マップ表示エリア(JavaScriptで作る) -->
+  <div id="grid" aria-label="マップ"></div>
+
+  <section>
+    <h2>ブロックを追加</h2>
+    <div id="palette"></div>
+  </section>
+
+  <section>
+    <h2>プログラム</h2>
+    <ol id="programList"></ol>
+    <button id="runButton" type="button">実行</button>
+    <button id="clearButton" type="button">プログラムを消す</button>
+  </section>
+
+  <p id="message" role="status"></p>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

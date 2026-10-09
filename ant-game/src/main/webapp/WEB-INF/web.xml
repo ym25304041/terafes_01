@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tomcat 10 (Jakarta Servlet 6.0) 用の設定ファイルです。
+  Servlet とフィルターは、ソースコード側の @WebServlet / @WebFilter で登録しているため、
+  ここには最低限の設定だけを書いています。
+-->
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+  <display-name>ant-game</display-name>
+
+  <!-- URL にファイル名がないときに表示するページ -->
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+  </welcome-file-list>
+
+  <!-- セッション用Cookieを JavaScript から読めないようにする(XSS による盗用対策) -->
+  <session-config>
+    <cookie-config>
+      <http-only>true</http-only>
+    </cookie-config>
+  </session-config>
+</web-app>
