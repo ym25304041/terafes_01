@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ゲームプレイ | アント・コマンド</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="screen game-screen">
+  <div class="shell">
+    <div class="menu-wrap">
+      <details>
+        <summary>☰</summary>
+        <div class="menu-panel">
+          <a href="index.html">⌂ ホーム</a>
+          <a href="stages.html">▦ ステージ選択</a>
+        </div>
+      </details>
+    </div>
+
+    <div class="game-layout">
+      <section class="game-left">
+        <div class="panel mission-card">
+          <div class="stage-no"><small>ステージ</small><b>1-3</b></div>
+          <div class="mission-title">
+            <h2>障害物を避けてゴールへ</h2>
+            <p>汎用型アリロボットを動かし、壁・落とし穴・敵を避けながらゴールを目指そう。</p>
+          </div>
+          <div class="conditions">
+            <div>⭐ クリア条件</div>
+            <div>○ ゴールに到達する</div>
+            <div>○ 敵にぶつからない</div>
+          </div>
+        </div>
+
+        <div class="board-panel">
+          <div class="map-wrap">
+            <div class="map-grid">
+              <!-- row 1 -->
+              <div class="cell empty"></div>
+              <div class="cell empty"></div>
+              <div class="cell tile wall"><img src="assets/wall.png" alt=""></div>
+              <div class="cell tile wall"><img src="assets/wall.png" alt=""></div>
+              <div class="cell tile wall"><img src="assets/wall.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile goal"><img src="assets/goal.png" alt="ゴール"></div>
+
+              <!-- row 2 -->
+              <div class="cell empty"></div>
+              <div class="cell tile start"><img src="assets/start.png" alt="スタート"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile wall"><img src="assets/wall.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+
+              <!-- row 3 -->
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass unit-host ant-host"><img src="assets/grass.png" alt=""><img class="unit-sprite ant-sprite" src="assets/ant.png" alt="汎用型アリロボット"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile pit"><img src="assets/pit.png" alt="落とし穴"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass unit-host spider-host"><img src="assets/grass.png" alt=""><img class="unit-sprite spider-sprite" src="assets/spider.png" alt="敵のクモ"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+
+              <!-- row 4 -->
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile pit"><img src="assets/pit.png" alt="落とし穴"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+
+              <!-- row 5 -->
+              <div class="cell empty"></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile wall"><img src="assets/wall.png" alt=""></div>
+              <div class="cell tile grass"><img src="assets/grass.png" alt=""></div>
+              <div class="cell tile grass unit-host bee-host"><img src="assets/grass.png" alt=""><img class="unit-sprite bee-sprite" src="assets/bee.png" alt="敵のハチ"></div>
+              <div class="cell empty"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="game-right">
+        <div class="right-panels">
+          <div class="panel side-panel">
+            <div class="panel-title">🧩 ブロック</div>
+            <div class="block-list">
+              <div class="block move"><span class="ico">➡</span>移動</div>
+              <div class="block pick"><span class="ico">📦</span>物を拾う</div>
+              <div class="block place"><span class="ico">⤓</span>物を置く</div>
+              <div class="block attack"><span class="ico">✹</span>攻撃する</div>
+              <div class="block jump"><span class="ico">⬆</span>ジャンプする</div>
+              <div class="block cond"><span class="ico">？</span>もし（条件分岐）</div>
+              <div class="block loop"><span class="ico">↻</span>〜回実行</div>
+            </div>
+          </div>
+
+          <div class="panel side-panel program-panel">
+            <div class="panel-title">📜 プログラム</div>
+            <div class="program-stack">
+              <div class="block pick">▶ はじめる</div>
+              <div class="block move active">➡ 移動</div>
+              <div class="block move">➡ 移動</div>
+              <div class="block jump">⬆ ジャンプする</div>
+              <div class="block move">➡ 移動</div>
+              <div class="block cond">もし「敵が目の前」なら</div>
+              <div class="block attack">✹ 攻撃する</div>
+              <div class="block move">➡ 移動</div>
+              <div class="block move">➡ 移動</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <a class="btn run" href="result-clear.html">▶ 実行</a>
+          <a class="btn reset" href="game.html">↻ やり直す</a>
+          <a class="btn stages" href="stages.html">▦ ステージ選択</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+</body>
+</html>
