@@ -1,6 +1,8 @@
 package com.terafes.ant.api;
 
+import com.terafes.ant.game.EnemyState;
 import com.terafes.ant.game.GameEvent;
+import com.terafes.ant.program.ConditionCheck;
 import com.terafes.ant.json.JsonWriter;
 import com.terafes.ant.program.RunResult;
 import com.terafes.ant.program.TraceStep;
@@ -62,6 +64,15 @@ final class ApiSupport {
             inventory.put("supply", t.hasSupply());
             inventory.put("weapon", t.hasWeapon());
             step.put("inventory", inventory);
+            step.put("enemies", toEnemyList(t.enemies()));
+            List<Object> conditions = new ArrayList<>();
+            for (ConditionCheck c : t.conditions()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("blockId", c.blockId());
+                m.put("value", c.value());
+                conditions.add(m);
+            }
+            step.put("conditions", conditions);
             trace.add(step);
         }
         Map<String, Object> body = new LinkedHashMap<>();
@@ -70,6 +81,19 @@ final class ApiSupport {
         body.put("stepCount", result.stepCount());
         body.put("trace", trace);
         return body;
+    }
+
+    /** 敵の位置のリストを、JSON にできる形に変換します。 */
+    static List<Object> toEnemyList(List<EnemyState> enemies) {
+        List<Object> list = new ArrayList<>();
+        for (EnemyState e : enemies) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", e.id());
+            m.put("x", e.x());
+            m.put("y", e.y());
+            list.add(m);
+        }
+        return list;
     }
 
     /** 自動で起きた出来事のリストを、JSON にできる形に変換します。 */

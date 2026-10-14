@@ -21,6 +21,8 @@ public final class TestMain {
         GameEngineTest.run();
         ItemGimmickTest.run();
         EnemyTest.run();
+        PatrolTest.run();
+        ControlBlockTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

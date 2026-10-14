@@ -1,14 +1,22 @@
 package com.terafes.ant.game;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
- * アリの移動・ジャンプとゲーム状態を管理するエンジンです。
+ * アリの移動・ジャンプ・待機、敵の動き、ゲーム状態を管理するエンジンです。
+ *
+ * 【時間（ターン）のルール】
+ *   ・アリが1回行動する（移動・ジャンプ・待つ）ごとに、時間が1ステップ進みます。
+ *     壁にぶつかって動けなかった場合や、ジャンプに失敗した場合も、1ステップ進みます。
+ *   ・1ステップの順番は「アリが先に行動 → そのあと敵が動く」です。
+ *   ・条件を調べる(check)だけでは、時間は進みません。
  *
  * 【移動・ジャンプのルール】
  *   ・移動は1回につき1マス。移動先が「マップ外」「壁」「閉じたドア」ならその場から動きません。
@@ -26,15 +34,18 @@ import java.util.Set;
  *     同じ記号のドアがすべて開きます。作動したスイッチは、もう一度乗っても物資を消費しません。
  *   ・物資を持っていないときは何も起きません（スイッチは通れるマスです）。
  *
- * 【敵のルール（自動で行われます）】
- *   ・敵は道のマスにいます。敵のいるマスへ移動（またはジャンプで着地）すると戦闘になります。
- *       - 武器を持っている → 敵を討伐し、そのマスに進めます。敵はマップからいなくなります。
- *                            武器は消費されないので、続けて別の敵も討伐できます。
+ * 【敵のルール（すべて自動で行われます）】
+ *   ・敵は動かない敵（マップの 'X'）と、巡回する敵（接敵ゾーン）の2種類です。
+ *   ・巡回する敵は、アリの行動のあとに、ゾーンの上を1マス進みます。端に着いたらすぐ折り返します。
+ *   ・アリと敵が同じマスになると、戦闘になります。
+ *       - アリが敵のマスに着いたとき（アリの行動中）
+ *       - 敵が動いて、アリのいるマスに入ったとき（敵の行動中。アリがその場で待っていても起きます）
+ *   ・戦闘の結果:
+ *       - 武器を持っている → 敵を討伐します。敵はマップからいなくなります。武器は消費されません。
  *       - 武器を持っていない → 敗北してゲームオーバー（FAILED）になります。
- *   ・戦闘のためにブロックは必要ありません。
  *
  * 1回のゲームごとに new GameEngine(map) で作ります。
- * 状態（位置・持ち物・ドアの開閉など）を持つため、複数のリクエストで使い回さないでください。
+ * 状態（位置・持ち物・敵の位置・ドアの開閉など）を持つため、複数のリクエストで使い回さないでください。
  * （Servlet は複数人が同時に使うので、インスタンスを共有すると他人の状態と混ざります）
  */
 public final class GameEngine {
@@ -43,15 +54,15 @@ public final class GameEngine {
     private final GameMap map;
     /** アリの現在位置 */
     private Position position;
-    /** アリの向き（直近に動こうとした方向）。後で「目の前」の条件判定に使います */
+    /** アリの向き（直近に動こうとした方向）。条件の「目の前」の判定に使う */
     private Direction facing;
     /** ゲームの状態 */
     private GameStatus status;
 
     /** まだ床に残っているアイテム（座標 → 種類）。取得すると取り除かれる */
     private final Map<Position, ItemType> remainingItems;
-    /** まだ生き残っている敵の位置。討伐するとここから取り除かれる */
-    private final Set<Position> remainingEnemies;
+    /** 全ての敵（動かない敵と巡回する敵）。討伐されると alive が false になる */
+    private final List<Enemy> enemies = new ArrayList<>();
     /** 作動済みのスイッチの位置 */
     private final Set<Position> usedSwitches = new HashSet<>();
     /** 開いているドアの対応記号（小文字）。この記号のドアはすべて開いている */
@@ -64,6 +75,55 @@ public final class GameEngine {
     private List<GameEvent> lastEvents = new ArrayList<>();
 
     /**
+     * 敵1体の状態（このクラスの中だけで使う）。
+     * 動かない敵は、経路が1マスだけの敵として表します。
+     */
+    private static final class Enemy {
+        /** 敵のID */
+        final String id;
+        /** 巡回する経路（動かない敵は1マスだけ） */
+        final List<Position> path;
+        /** 経路の中の現在位置（番号） */
+        int index = 0;
+        /** 進む向き（+1 または -1）。最初は先頭から末尾へ向かう（+1） */
+        int direction = 1;
+        /** 生きているか（討伐されたら false） */
+        boolean alive = true;
+
+        Enemy(String id, List<Position> path) {
+            this.id = id;
+            this.path = path;
+        }
+
+        Position position() {
+            return path.get(index);
+        }
+
+        /** 次に進む向き。端に着いていたら折り返して逆向きになる。 */
+        private int nextDirection() {
+            int next = index + direction;
+            return (next < 0 || next >= path.size()) ? -direction : direction;
+        }
+
+        /** 次のステップで敵がいるマス（動かさずに調べる）。動かない敵は今のマスのまま。 */
+        Position nextPosition() {
+            if (path.size() == 1) {
+                return position();
+            }
+            return path.get(index + nextDirection());
+        }
+
+        /** 1マス進む。動かない敵は何もしない。 */
+        void advance() {
+            if (path.size() == 1) {
+                return;
+            }
+            direction = nextDirection();
+            index += direction;
+        }
+    }
+
+    /**
      * @param map ゲームで使うマップ。アリはマップのスタート地点から始まります
      */
     public GameEngine(GameMap map) {
@@ -73,7 +133,17 @@ public final class GameEngine {
         this.status = GameStatus.PLAYING;
         // マップの初期配置をコピーして使う（元のマップは書き換えない）
         this.remainingItems = new HashMap<>(map.getInitialItems());
-        this.remainingEnemies = new HashSet<>(map.getInitialEnemies());
+
+        // 動かない敵: 画面の上から下、左から右の順に x0, x1, … とIDを付ける
+        List<Position> fixed = new ArrayList<>(map.getInitialEnemies());
+        fixed.sort(Comparator.comparingInt(Position::y).thenComparingInt(Position::x));
+        for (int i = 0; i < fixed.size(); i++) {
+            enemies.add(new Enemy("x" + i, List.of(fixed.get(i))));
+        }
+        // 巡回する敵: ゾーン番号を使って z1〜z5 とIDを付ける
+        for (PatrolRoute route : map.getPatrols()) {
+            enemies.add(new Enemy("z" + route.zoneId(), route.path()));
+        }
     }
 
     // ------------------------------------------------------------------
@@ -103,11 +173,25 @@ public final class GameEngine {
     }
 
     /**
-     * 直前の1回の行動で自動的に起きた出来事（取得・スイッチ作動・ドアが開く）を返します。
+     * 直前の1回の行動で自動的に起きた出来事（取得・スイッチ作動・ドアが開く・敵の討伐）を返します。
      * 次の行動をすると入れ替わります。
      */
     public List<GameEvent> getLastEvents() {
         return List.copyOf(lastEvents);
+    }
+
+    /**
+     * 今、生きている全ての敵の位置を返します（敵のIDの順）。
+     * 画面が敵を表示するために使います。
+     */
+    public List<EnemyState> getEnemyStates() {
+        List<EnemyState> states = new ArrayList<>();
+        for (Enemy e : enemies) {
+            if (e.alive) {
+                states.add(new EnemyState(e.id, e.position().x(), e.position().y()));
+            }
+        }
+        return states;
     }
 
     /**
@@ -137,18 +221,56 @@ public final class GameEngine {
         return map.isDoor(pos) && !openedLinks.contains(map.getLink(pos));
     }
 
-    /** 指定したマスにまだ敵が生き残っているか。 */
-    public boolean hasEnemyAt(Position pos) {
-        return remainingEnemies.contains(pos);
-    }
-
     /** 指定したマスにまだアイテムが残っているか。 */
     public boolean hasItemAt(Position pos) {
         return remainingItems.containsKey(pos);
     }
 
+    /** 指定したマスに、今、生きている敵がいるか（動かない敵・巡回する敵のどちらも）。 */
+    public boolean hasEnemyAt(Position pos) {
+        for (Enemy e : enemies) {
+            if (e.alive && e.position().equals(pos)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------
-    // 移動（上下左右）
+    // 条件の判定（時間は進まない）
+    // ------------------------------------------------------------------
+
+    /**
+     * 条件が成り立っているかを調べます。「もし〜なら」「〜の間」から呼ばれます。
+     * 調べるだけで、アリも敵も動きません（時間は進みません）。
+     *
+     * 「目の前」は、アリが今向いている方向の1マス先です。
+     *
+     * @param condition 調べる条件
+     * @return 成り立っていれば true
+     */
+    public boolean check(ConditionType condition) {
+        Position front = facing.step(position, 1);
+        return switch (condition) {
+            // マップの端も壁として扱う
+            case WALL_AHEAD -> map.isOutOfMap(front) || map.isWall(front);
+            case PIT_AHEAD -> map.isPit(front);
+            case ENEMY_AHEAD -> hasEnemyAt(front);
+            case ENEMY_COMING -> {
+                // 敵が「今」目の前にいる、または「次のステップで」目の前に入ってくる
+                boolean coming = false;
+                for (Enemy e : enemies) {
+                    if (e.alive && (e.position().equals(front) || e.nextPosition().equals(front))) {
+                        coming = true;
+                    }
+                }
+                yield coming;
+            }
+        };
+    }
+
+    // ------------------------------------------------------------------
+    // 行動（移動・ジャンプ・待つ）
     // ------------------------------------------------------------------
 
     public ActionResult moveUp() {
@@ -167,23 +289,87 @@ public final class GameEngine {
         return move(Direction.RIGHT);
     }
 
+    public ActionResult jumpUp() {
+        return jump(Direction.UP);
+    }
+
+    public ActionResult jumpDown() {
+        return jump(Direction.DOWN);
+    }
+
+    public ActionResult jumpLeft() {
+        return jump(Direction.LEFT);
+    }
+
+    public ActionResult jumpRight() {
+        return jump(Direction.RIGHT);
+    }
+
     /**
      * 指定した方向へ1マス移動します（上下左右の共通処理）。
-     *
-     * 処理の流れ:
-     *   1. ゲームがすでに終わっていたら何もしない
-     *   2. アリの向きを更新する（壁にぶつかる場合でも、その方向を向く）
-     *   3. 移動先がマップ外・壁・閉じたドアなら動かない
-     *   4. 移動する。着いたマスで、アイテム取得・スイッチ作動・落下・クリアを判定する
      *
      * @param dir 移動する方向
      * @return 行動の結果
      */
     public ActionResult move(Direction dir) {
+        return act(() -> doMove(dir));
+    }
+
+    /**
+     * 指定した方向へジャンプし、前方1マスの落とし穴を飛び越えて2マス先へ着地します。
+     *
+     * @param dir ジャンプする方向
+     * @return 行動の結果
+     */
+    public ActionResult jump(Direction dir) {
+        return act(() -> doJump(dir));
+    }
+
+    /**
+     * その場で1ステップ待ちます。アリは動きませんが、時間は進み、敵は動きます。
+     *
+     * @return 行動の結果（WAITED。敵に倒された場合は DEFEATED_BY_ENEMY）
+     */
+    public ActionResult waitOneTurn() {
+        return act(() -> ActionResult.WAITED);
+    }
+
+    // ------------------------------------------------------------------
+    // 内部処理
+    // ------------------------------------------------------------------
+
+    /**
+     * アリの行動1回ぶんの共通処理です。移動・ジャンプ・待つは、すべてここを通ります。
+     *
+     * 流れ:
+     *   1. 出来事の記録を空にする
+     *   2. ゲームがすでに終わっていたら何もしない（時間も進まない）
+     *   3. アリが行動する（action）
+     *   4. ゲームが続いていれば、敵が動く（敵がアリと同じマスに入れば戦闘）
+     *
+     * @param action アリの行動（結果を返す処理）
+     * @return 行動の結果。敵の行動中に倒された場合は DEFEATED_BY_ENEMY
+     */
+    private ActionResult act(Supplier<ActionResult> action) {
         lastEvents = new ArrayList<>();
         if (status != GameStatus.PLAYING) {
             return ActionResult.GAME_ALREADY_OVER;
         }
+        ActionResult result = action.get();
+        // アリの行動でクリア・失敗が決まったら、敵は動かない。続いていれば敵のターン。
+        if (status == GameStatus.PLAYING && enemiesTurn()) {
+            return ActionResult.DEFEATED_BY_ENEMY;
+        }
+        return result;
+    }
+
+    /**
+     * 移動の本体。
+     *   1. アリの向きを更新する（壁にぶつかる場合でも、その方向を向く）
+     *   2. 移動先がマップ外・壁・閉じたドアなら動かない
+     *   3. 移動する。着いたマスで、アイテム取得・戦闘・スイッチ作動・落下・クリアを判定する
+     */
+    private ActionResult doMove(Direction dir) {
         facing = dir;
 
         Position next = dir.step(position, 1);
@@ -203,44 +389,14 @@ public final class GameEngine {
         return resolveLanding(ActionResult.MOVED);
     }
 
-    // ------------------------------------------------------------------
-    // ジャンプ（上下左右）
-    // ------------------------------------------------------------------
-
-    public ActionResult jumpUp() {
-        return jump(Direction.UP);
-    }
-
-    public ActionResult jumpDown() {
-        return jump(Direction.DOWN);
-    }
-
-    public ActionResult jumpLeft() {
-        return jump(Direction.LEFT);
-    }
-
-    public ActionResult jumpRight() {
-        return jump(Direction.RIGHT);
-    }
-
     /**
-     * 指定した方向へジャンプし、前方1マスの落とし穴を飛び越えて2マス先へ着地します。
-     *
-     * 処理の流れ:
-     *   1. ゲームがすでに終わっていたら何もしない
-     *   2. アリの向きを更新する
-     *   3. 前方1マスが落とし穴でなければ失敗（その場から動かない）
-     *   4. 2マス先（着地点）がマップ外・壁・閉じたドアなら失敗（その場から動かない）
-     *   5. 着地する。着いたマスで、アイテム取得・スイッチ作動・落下・クリアを判定する
-     *
-     * @param dir ジャンプする方向
-     * @return 行動の結果
+     * ジャンプの本体。
+     *   1. アリの向きを更新する
+     *   2. 前方1マスが落とし穴でなければ失敗（その場から動かない）
+     *   3. 2マス先（着地点）がマップ外・壁・閉じたドアなら失敗（その場から動かない）
+     *   4. 着地する。着いたマスで、アイテム取得・戦闘・スイッチ作動・落下・クリアを判定する
      */
-    public ActionResult jump(Direction dir) {
-        lastEvents = new ArrayList<>();
-        if (status != GameStatus.PLAYING) {
-            return ActionResult.GAME_ALREADY_OVER;
-        }
+    private ActionResult doJump(Direction dir) {
         facing = dir;
 
         Position front = dir.step(position, 1);
@@ -259,10 +415,6 @@ public final class GameEngine {
         return resolveLanding(ActionResult.JUMPED);
     }
 
-    // ------------------------------------------------------------------
-    // 内部処理
-    // ------------------------------------------------------------------
-
     /**
      * 移動／着地した直後のマスを調べ、自動処理と落下・クリアの判定をして結果を返します。
      *
@@ -276,7 +428,7 @@ public final class GameEngine {
             return ActionResult.FELL_INTO_PIT;
         }
         pickUpItem();
-        if (fightEnemy()) {
+        if (meetEnemies()) {
             return ActionResult.DEFEATED_BY_ENEMY;
         }
         activateSwitch();
@@ -285,6 +437,49 @@ public final class GameEngine {
             return ActionResult.REACHED_GOAL;
         }
         return normalResult;
+    }
+
+    /**
+     * 敵のターン: 巡回する敵がそれぞれ1マス進み、アリと同じマスになれば戦闘します。
+     *
+     * @return アリが敗北した場合 true
+     */
+    private boolean enemiesTurn() {
+        for (Enemy e : enemies) {
+            if (e.alive) {
+                e.advance();
+            }
+        }
+        return meetEnemies();
+    }
+
+    /**
+     * アリのいるマスに敵がいれば戦闘します（アリが入ったときも、敵が入ってきたときも共通）。
+     *
+     * 武器を持っていれば、そのマスの敵を全て討伐して取り除きます（武器は消費しません）。
+     * 持っていなければ敗北し、ゲームを失敗（FAILED）にします。
+     *
+     * @return 敗北した場合 true（このときは以降の処理を行わない）
+     */
+    private boolean meetEnemies() {
+        List<Enemy> here = new ArrayList<>();
+        for (Enemy e : enemies) {
+            if (e.alive && e.position().equals(position)) {
+                here.add(e);
+            }
+        }
+        if (here.isEmpty()) {
+            return false;
+        }
+        if (!hasWeapon) {
+            status = GameStatus.FAILED;
+            return true;
+        }
+        for (Enemy e : here) {
+            e.alive = false;
+            lastEvents.add(new GameEvent(EventType.ENEMY_DEFEATED, null, position.x(), position.y()));
+        }
+        return false;
     }
 
     /**
@@ -305,27 +500,6 @@ public final class GameEngine {
         }
         remainingItems.remove(position);
         lastEvents.add(new GameEvent(EventType.PICKUP, item, position.x(), position.y()));
-    }
-
-    /**
-     * 現在のマスに敵がいれば戦闘を行います。
-     *
-     * 武器を持っていれば敵を討伐して敵を取り除きます（武器は消費しません）。
-     * 持っていなければ敗北してゲームを失敗（FAILED）にします。
-     *
-     * @return 敗北した場合 true（このときは以降の処理を行わない）
-     */
-    private boolean fightEnemy() {
-        if (!remainingEnemies.contains(position)) {
-            return false;
-        }
-        if (!hasWeapon) {
-            status = GameStatus.FAILED;
-            return true;
-        }
-        remainingEnemies.remove(position);
-        lastEvents.add(new GameEvent(EventType.ENEMY_DEFEATED, null, position.x(), position.y()));
-        return false;
     }
 
     /**

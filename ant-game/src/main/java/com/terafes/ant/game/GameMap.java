@@ -25,7 +25,12 @@ import java.util.Set;
  *     '.' = 道            '#' = 壁           'P' = 落とし穴(Pit)
  *     'G' = ゴール         'S' = スタート地点(地形としては道)
  *     'M' = 物資が置かれた道   'W' = 武器が置かれた道
- *     'X' = 敵がいる道（'E' はドアに使うため、敵には 'X' を使う）
+ *     'X' = 動かない敵がいる道（'E' はドアに使うため、敵には 'X' を使う）
+ *     '1'〜'5' = 接敵ゾーン（巡回する敵が往復する経路のマス）
+ *
+ *   接敵ゾーンは、同じ数字を縦または横に2マス以上、連続して並べて書きます。
+ *   各ゾーンに敵が1体付き、ゾーンの左端（縦ならば上端）から反対側の端へ向かって動き始めます。
+ *   敵は1ステップに1マス進み、端に着いたらすぐ折り返して往復します。
  *     'a'〜'e' = スイッチ   'A'〜'E' = ドア
  *
  *   スイッチとドアは同じ文字で対応します。小文字のスイッチ 'a' を作動させると、
@@ -50,17 +55,20 @@ public final class GameMap {
     private final char[][] links;
     /** アイテムの初期配置（座標 → アイテムの種類）。変更不可。 */
     private final Map<Position, ItemType> initialItems;
-    /** 敵の初期配置（敵のいる座標の集まり）。変更不可。 */
+    /** 動かない敵の初期配置（敵のいる座標の集まり）。変更不可。 */
     private final Set<Position> initialEnemies;
+    /** 巡回する敵の経路（ゾーン番号の小さい順）。変更不可。 */
+    private final List<PatrolRoute> patrols;
     /** アリの開始位置 */
     private final Position start;
 
     private GameMap(CellType[][] cells, char[][] links, Map<Position, ItemType> items,
-                    Set<Position> enemies, Position start) {
+                    Set<Position> enemies, List<PatrolRoute> patrols, Position start) {
         this.cells = cells;
         this.links = links;
         this.initialItems = Collections.unmodifiableMap(items);
         this.initialEnemies = Collections.unmodifiableSet(enemies);
+        this.patrols = Collections.unmodifiableList(patrols);
         this.start = start;
     }
 
@@ -82,6 +90,7 @@ public final class GameMap {
         char[][] links = new char[ROWS][COLS];
         Map<Position, ItemType> items = new HashMap<>();
         Set<Position> enemies = new HashSet<>();
+        Map<Character, List<Position>> zoneCells = new java.util.TreeMap<>(); // ゾーン番号 → マスの一覧
         Set<Character> switchLinks = new HashSet<>();
         Set<Character> doorLinks = new HashSet<>();
         Position start = null;
@@ -94,6 +103,12 @@ public final class GameMap {
             }
             for (int x = 0; x < COLS; x++) {
                 char c = line.charAt(x);
+                if (c >= '1' && c <= '5') {
+                    // 数字 = 接敵ゾーン。経路の検査は、全マスを読み終えてからまとめて行う
+                    cells[y][x] = CellType.ZONE;
+                    zoneCells.computeIfAbsent(c, k -> new ArrayList<>()).add(new Position(x, y));
+                    continue;
+                }
                 if (c >= 'a' && c <= 'e') {
                     // 小文字 = スイッチ
                     cells[y][x] = CellType.SWITCH;
@@ -163,7 +178,51 @@ public final class GameMap {
                         "ドア(" + Character.toUpperCase(link) + ")に対応するスイッチ(" + link + ")がありません");
             }
         }
-        return new GameMap(cells, links, items, enemies, start);
+        List<PatrolRoute> patrols = new ArrayList<>();
+        for (Map.Entry<Character, List<Position>> zone : zoneCells.entrySet()) {
+            patrols.add(new PatrolRoute(zone.getKey(), buildPath(zone.getKey(), zone.getValue())));
+        }
+        return new GameMap(cells, links, items, enemies, patrols, start);
+    }
+
+    /**
+     * 接敵ゾーンのマスから、敵の巡回経路を作ります。
+     *
+     * 検査: 2マス以上あり、縦1列または横1列に隙間なく連続していること。
+     * 経路は、左端（縦ならば上端）から順に並べます。
+     */
+    private static List<Position> buildPath(char zoneId, List<Position> cellsOfZone) {
+        if (cellsOfZone.size() < 2) {
+            throw new IllegalArgumentException("接敵ゾーン(" + zoneId + ")は2マス以上にしてください");
+        }
+        boolean horizontal = cellsOfZone.stream().allMatch(p -> p.y() == cellsOfZone.get(0).y());
+        boolean vertical = cellsOfZone.stream().allMatch(p -> p.x() == cellsOfZone.get(0).x());
+        if (!horizontal && !vertical) {
+            throw new IllegalArgumentException("接敵ゾーン(" + zoneId + ")は縦か横の1列にしてください");
+        }
+        List<Position> path = new ArrayList<>(cellsOfZone);
+        path.sort(horizontal
+                ? java.util.Comparator.comparingInt(Position::x)
+                : java.util.Comparator.comparingInt(Position::y));
+        for (int i = 1; i < path.size(); i++) {
+            int gap = horizontal
+                    ? path.get(i).x() - path.get(i - 1).x()
+                    : path.get(i).y() - path.get(i - 1).y();
+            if (gap != 1) {
+                throw new IllegalArgumentException("接敵ゾーン(" + zoneId + ")は途切れずに連続させてください");
+            }
+        }
+        return List.copyOf(path);
+    }
+
+    /** 巡回する敵の経路（ゾーン番号の小さい順）を返します。変更はできません。 */
+    public List<PatrolRoute> getPatrols() {
+        return patrols;
+    }
+
+    /** 指定した位置が接敵ゾーンのマスかどうかを判定します。マップ外は false です。 */
+    public boolean isZone(Position pos) {
+        return is(pos, CellType.ZONE);
     }
 
     /** アリの開始位置を返します。 */
