@@ -14,6 +14,8 @@ public enum ActionResult {
     JUMPED,
     /** 移動先が壁だったので動かなかった */
     BLOCKED_WALL,
+    /** その場で1ステップ待った（時間だけが進む） */
+    WAITED,
     /** 移動先が閉じたドアだったので動かなかった */
     BLOCKED_DOOR,
     /** 移動先がマップ外だったので動かなかった */

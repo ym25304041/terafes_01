@@ -10,13 +10,28 @@ section { margin: 12px 0; }
 .cell.pit { background: #222; }
 .cell.goal { background: #ffd54a; }
 .cell.door { background: #b9824a; }
+/* 接敵ゾーン(敵が往復する範囲)は薄い赤。敵のいるマスは濃いピンク */
+.cell.zone { background: #f4d6cf; }
 .cell.enemy { background: #e9a8a0; }
 
-/* 実行中ハイライト */
-#programList li.active { background: #bde0ff; font-weight: bold; }
-#programList li { padding: 2px 6px; }
-
+/* 操作部品 */
+.controls { margin-bottom: 6px; }
 #palette button { margin: 2px; }
+
+/* プログラム(入れ子の表示) */
+#program ul { list-style: none; margin: 0; padding-left: 18px; }
+#program > ul { padding-left: 0; }
+.block-line { padding: 2px 6px; margin: 1px 0; border-left: 3px solid #bbb; }
+.slot { margin-left: 18px; }
+.slot-head { font-size: 12px; background: none; border: 1px dashed #999; border-radius: 4px;
+             color: #444; cursor: pointer; margin: 2px 0; }
+.slot-head.selected { background: #cfe8ff; border-color: #2a6fb0; font-weight: bold; }
+
+/* 実行中ハイライト: 実行中の行動と、直前に調べた条件(成り立てば緑・成り立たなければ赤の枠) */
+.block-line.active { background: #bde0ff; font-weight: bold; }
+.block-line.cond-true { border-left-color: #0a7a2f; background: #e1f4e6; }
+.block-line.cond-false { border-left-color: #b3261e; background: #fbe4e2; }
+
 #message { font-weight: bold; min-height: 1.5em; }
 #message.ok { color: #0a7a2f; }
 #message.ng { color: #b3261e; }

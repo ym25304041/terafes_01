@@ -1,5 +1,6 @@
 package com.terafes.ant.api;
 
+import com.terafes.ant.game.GameEngine;
 import com.terafes.ant.game.GameMap;
 import com.terafes.ant.game.Position;
 import com.terafes.ant.game.Stage;
@@ -64,6 +65,8 @@ public class StageServlet extends HttpServlet {
         body.put("name", stage.name());
         body.put("rows", stage.rows());
         body.put("start", startMap);
+        // 敵の初期位置（画面が最初の状態を描くために使う）
+        body.put("enemies", ApiSupport.toEnemyList(new GameEngine(map).getEnemyStates()));
         ApiSupport.writeJson(resp, HttpServletResponse.SC_OK, body);
     }
 }
