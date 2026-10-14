@@ -24,6 +24,8 @@ public enum ActionResult {
     JUMP_FAILED_BLOCKED,
     /** 落とし穴に落ちた（ゲームオーバー） */
     FELL_INTO_PIT,
+    /** 武器を持たずに敵のいるマスに着いて、敗北した（ゲームオーバー） */
+    DEFEATED_BY_ENEMY,
     /** ゴールに到達した（クリア） */
     REACHED_GOAL,
     /** すでにゲームが終わっているため、何もしなかった */

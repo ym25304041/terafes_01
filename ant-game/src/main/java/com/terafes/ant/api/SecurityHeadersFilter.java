@@ -21,6 +21,9 @@ import java.io.IOException;
  *   X-Content-Type-Options : ブラウザによる Content-Type の勝手な推測を禁止する。
  *   X-Frame-Options        : 他サイトの iframe に埋め込まれるのを禁止する(クリックジャッキング対策)。
  *   Referrer-Policy        : 他サイトへ遷移するとき、元のURLを送らない。
+ *   Cache-Control          : ブラウザが古い画面ファイル(js・css・html)を使い続けないよう、
+ *                            毎回サーバーに更新の有無を確認させる(再デプロイ後に古い画面が残る問題の対策)。
+ *                            API のレスポンスでは、別途 no-store を指定して上書きする。
  */
 @WebFilter("/*")
 public class SecurityHeadersFilter implements Filter {
@@ -35,6 +38,7 @@ public class SecurityHeadersFilter implements Filter {
             resp.setHeader("X-Content-Type-Options", "nosniff");
             resp.setHeader("X-Frame-Options", "DENY");
             resp.setHeader("Referrer-Policy", "no-referrer");
+            resp.setHeader("Cache-Control", "no-cache");
         }
         // 次の処理（別のフィルターまたは Servlet）へ進む
         chain.doFilter(request, response);

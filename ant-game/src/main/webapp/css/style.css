@@ -10,6 +10,7 @@ section { margin: 12px 0; }
 .cell.pit { background: #222; }
 .cell.goal { background: #ffd54a; }
 .cell.door { background: #b9824a; }
+.cell.enemy { background: #e9a8a0; }
 
 /* 実行中ハイライト */
 #programList li.active { background: #bde0ff; font-weight: bold; }

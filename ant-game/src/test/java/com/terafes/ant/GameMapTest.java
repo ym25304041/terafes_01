@@ -58,8 +58,8 @@ final class GameMapTest {
                 () -> GameMap.fromRows(List.of(".........", ".........", "S........", ".........", ".........")));
         T.throwsError("スタートが2つあると例外", IllegalArgumentException.class,
                 () -> GameMap.fromRows(List.of("S.......G", "S........", ".........", ".........", ".........")));
-        T.throwsError("使えない文字(X)があると例外", IllegalArgumentException.class,
-                () -> GameMap.fromRows(List.of("S.......G", "X........", ".........", ".........", ".........")));
+        T.throwsError("使えない文字(Z)があると例外", IllegalArgumentException.class,
+                () -> GameMap.fromRows(List.of("S.......G", "Z........", ".........", ".........", ".........")));
 
         // 本番のステージ定義がすべて正しい形式であること
         for (Stage stage : StageRepository.findAll()) {

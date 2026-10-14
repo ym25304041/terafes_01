@@ -16,6 +16,7 @@ const TYPE_LABEL = { MOVE: '移動', JUMP: 'ジャンプ' };
 // サーバーが返すコードに対応する日本語メッセージ
 const FAIL_MESSAGE = {
   FELL_INTO_PIT: '落とし穴に落ちました…',
+  DEFEATED_BY_ENEMY: '武器を持たずに敵と戦い、敗北しました…',
   NOT_REACHED_GOAL: 'ゴールに着けませんでした。',
   STEP_LIMIT_EXCEEDED: '実行回数の上限(100回)を超えたので止めました。'
 };
@@ -65,6 +66,7 @@ function symbolOf(ch) {
   if (ch === 'G') { return '🏁'; }
   if (ch === 'M') { return '📦'; }
   if (ch === 'W') { return '⚔'; }
+  if (ch === 'X') { return '🐍'; }
   if (ch >= 'a' && ch <= 'e') { return '🔘' + ch; }
   if (ch >= 'A' && ch <= 'E') { return '🚪' + ch; }
   if (ch === '!') { return '✅'; }
@@ -88,6 +90,7 @@ function drawGrid(antPos) {
       if (ch === '#') { cell.classList.add('wall'); }
       if (ch === 'P') { cell.classList.add('pit'); }
       if (ch === 'G') { cell.classList.add('goal'); }
+      if (ch === 'X') { cell.classList.add('enemy'); }
       if ((ch >= 'A' && ch <= 'E') || ch === '_') { cell.classList.add('door'); }
       cell.textContent = symbolOf(ch);
       if (antPos && antPos.x === x && antPos.y === y) {
@@ -106,6 +109,7 @@ function applyEvents(events) {
     if (e.type === 'PICKUP') { view[e.y][e.x] = '.'; }
     if (e.type === 'SWITCH_ON') { view[e.y][e.x] = '!'; }
     if (e.type === 'DOOR_OPEN') { view[e.y][e.x] = '_'; }
+    if (e.type === 'ENEMY_DEFEATED') { view[e.y][e.x] = '.'; }
   });
 }
 
