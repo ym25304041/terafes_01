@@ -26,6 +26,13 @@ import java.util.Set;
  *     同じ記号のドアがすべて開きます。作動したスイッチは、もう一度乗っても物資を消費しません。
  *   ・物資を持っていないときは何も起きません（スイッチは通れるマスです）。
  *
+ * 【敵のルール（自動で行われます）】
+ *   ・敵は道のマスにいます。敵のいるマスへ移動（またはジャンプで着地）すると戦闘になります。
+ *       - 武器を持っている → 敵を討伐し、そのマスに進めます。敵はマップからいなくなります。
+ *                            武器は消費されないので、続けて別の敵も討伐できます。
+ *       - 武器を持っていない → 敗北してゲームオーバー（FAILED）になります。
+ *   ・戦闘のためにブロックは必要ありません。
+ *
  * 1回のゲームごとに new GameEngine(map) で作ります。
  * 状態（位置・持ち物・ドアの開閉など）を持つため、複数のリクエストで使い回さないでください。
  * （Servlet は複数人が同時に使うので、インスタンスを共有すると他人の状態と混ざります）
@@ -43,6 +50,8 @@ public final class GameEngine {
 
     /** まだ床に残っているアイテム（座標 → 種類）。取得すると取り除かれる */
     private final Map<Position, ItemType> remainingItems;
+    /** まだ生き残っている敵の位置。討伐するとここから取り除かれる */
+    private final Set<Position> remainingEnemies;
     /** 作動済みのスイッチの位置 */
     private final Set<Position> usedSwitches = new HashSet<>();
     /** 開いているドアの対応記号（小文字）。この記号のドアはすべて開いている */
@@ -64,6 +73,7 @@ public final class GameEngine {
         this.status = GameStatus.PLAYING;
         // マップの初期配置をコピーして使う（元のマップは書き換えない）
         this.remainingItems = new HashMap<>(map.getInitialItems());
+        this.remainingEnemies = new HashSet<>(map.getInitialEnemies());
     }
 
     // ------------------------------------------------------------------
@@ -125,6 +135,11 @@ public final class GameEngine {
      */
     public boolean isClosedDoor(Position pos) {
         return map.isDoor(pos) && !openedLinks.contains(map.getLink(pos));
+    }
+
+    /** 指定したマスにまだ敵が生き残っているか。 */
+    public boolean hasEnemyAt(Position pos) {
+        return remainingEnemies.contains(pos);
     }
 
     /** 指定したマスにまだアイテムが残っているか。 */
@@ -251,7 +266,7 @@ public final class GameEngine {
     /**
      * 移動／着地した直後のマスを調べ、自動処理と落下・クリアの判定をして結果を返します。
      *
-     * 順番: 落下の判定 → アイテム取得 → スイッチ作動 → ゴールの判定
+     * 順番: 落下の判定 → アイテム取得 → 敵との戦闘 → スイッチ作動 → ゴールの判定
      *
      * @param normalResult 特別なことが起きなかった場合に返す結果（MOVED または JUMPED）
      */
@@ -261,6 +276,9 @@ public final class GameEngine {
             return ActionResult.FELL_INTO_PIT;
         }
         pickUpItem();
+        if (fightEnemy()) {
+            return ActionResult.DEFEATED_BY_ENEMY;
+        }
         activateSwitch();
         if (isAtGoal()) {
             status = GameStatus.CLEARED;
@@ -287,6 +305,27 @@ public final class GameEngine {
         }
         remainingItems.remove(position);
         lastEvents.add(new GameEvent(EventType.PICKUP, item, position.x(), position.y()));
+    }
+
+    /**
+     * 現在のマスに敵がいれば戦闘を行います。
+     *
+     * 武器を持っていれば敵を討伐して敵を取り除きます（武器は消費しません）。
+     * 持っていなければ敗北してゲームを失敗（FAILED）にします。
+     *
+     * @return 敗北した場合 true（このときは以降の処理を行わない）
+     */
+    private boolean fightEnemy() {
+        if (!remainingEnemies.contains(position)) {
+            return false;
+        }
+        if (!hasWeapon) {
+            status = GameStatus.FAILED;
+            return true;
+        }
+        remainingEnemies.remove(position);
+        lastEvents.add(new GameEvent(EventType.ENEMY_DEFEATED, null, position.x(), position.y()));
+        return false;
     }
 
     /**

@@ -25,6 +25,7 @@ import java.util.Set;
  *     '.' = 道            '#' = 壁           'P' = 落とし穴(Pit)
  *     'G' = ゴール         'S' = スタート地点(地形としては道)
  *     'M' = 物資が置かれた道   'W' = 武器が置かれた道
+ *     'X' = 敵がいる道（'E' はドアに使うため、敵には 'X' を使う）
  *     'a'〜'e' = スイッチ   'A'〜'E' = ドア
  *
  *   スイッチとドアは同じ文字で対応します。小文字のスイッチ 'a' を作動させると、
@@ -49,13 +50,17 @@ public final class GameMap {
     private final char[][] links;
     /** アイテムの初期配置（座標 → アイテムの種類）。変更不可。 */
     private final Map<Position, ItemType> initialItems;
+    /** 敵の初期配置（敵のいる座標の集まり）。変更不可。 */
+    private final Set<Position> initialEnemies;
     /** アリの開始位置 */
     private final Position start;
 
-    private GameMap(CellType[][] cells, char[][] links, Map<Position, ItemType> items, Position start) {
+    private GameMap(CellType[][] cells, char[][] links, Map<Position, ItemType> items,
+                    Set<Position> enemies, Position start) {
         this.cells = cells;
         this.links = links;
         this.initialItems = Collections.unmodifiableMap(items);
+        this.initialEnemies = Collections.unmodifiableSet(enemies);
         this.start = start;
     }
 
@@ -76,6 +81,7 @@ public final class GameMap {
         CellType[][] cells = new CellType[ROWS][COLS];
         char[][] links = new char[ROWS][COLS];
         Map<Position, ItemType> items = new HashMap<>();
+        Set<Position> enemies = new HashSet<>();
         Set<Character> switchLinks = new HashSet<>();
         Set<Character> doorLinks = new HashSet<>();
         Position start = null;
@@ -120,6 +126,11 @@ public final class GameMap {
                         cells[y][x] = CellType.ROAD;
                         items.put(new Position(x, y), ItemType.WEAPON);
                     }
+                    case 'X' -> {
+                        // 敵は「道の上」にいる
+                        cells[y][x] = CellType.ROAD;
+                        enemies.add(new Position(x, y));
+                    }
                     case 'S' -> {
                         // スタート地点は「道」として扱い、位置だけ別に覚えておく
                         cells[y][x] = CellType.ROAD;
@@ -152,7 +163,7 @@ public final class GameMap {
                         "ドア(" + Character.toUpperCase(link) + ")に対応するスイッチ(" + link + ")がありません");
             }
         }
-        return new GameMap(cells, links, items, start);
+        return new GameMap(cells, links, items, enemies, start);
     }
 
     /** アリの開始位置を返します。 */
@@ -229,6 +240,11 @@ public final class GameMap {
     /** アイテムの初期配置（座標 → 種類）を返します。変更はできません。 */
     public Map<Position, ItemType> getInitialItems() {
         return initialItems;
+    }
+
+    /** 敵の初期配置（敵のいる座標）を返します。変更はできません。 */
+    public Set<Position> getInitialEnemies() {
+        return initialEnemies;
     }
 
     /**

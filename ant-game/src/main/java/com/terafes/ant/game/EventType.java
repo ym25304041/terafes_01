@@ -11,5 +11,7 @@ public enum EventType {
     /** 物資を消費してスイッチを作動させた */
     SWITCH_ON,
     /** ドアが開いた */
-    DOOR_OPEN
+    DOOR_OPEN,
+    /** 武器を持った状態で敵のいるマスに着き、敵を討伐した */
+    ENEMY_DEFEATED
 }

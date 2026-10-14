@@ -20,6 +20,7 @@ public final class TestMain {
         GameMapTest.run();
         GameEngineTest.run();
         ItemGimmickTest.run();
+        EnemyTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

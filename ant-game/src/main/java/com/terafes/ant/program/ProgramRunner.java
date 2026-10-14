@@ -22,6 +22,8 @@ public final class ProgramRunner {
 
     /** 失敗理由コード: 落とし穴に落ちた */
     public static final String FAIL_FELL_INTO_PIT = "FELL_INTO_PIT";
+    /** 失敗理由コード: 武器を持たずに敵のいるマスに進み、敗北した */
+    public static final String FAIL_DEFEATED_BY_ENEMY = "DEFEATED_BY_ENEMY";
     /** 失敗理由コード: 最後まで実行したがゴールに着かなかった */
     public static final String FAIL_NOT_REACHED_GOAL = "NOT_REACHED_GOAL";
     /** 失敗理由コード: 最大ステップ数を超えた */
@@ -41,6 +43,7 @@ public final class ProgramRunner {
         GameEngine engine = new GameEngine(stage.createMap());
         List<TraceStep> trace = new ArrayList<>();
         int stepCount = 0;
+        ActionResult lastResult = null; // 最後に実行した行動の結果（失敗の理由を判断するため）
 
         for (Block block : program) {
             // 上限を超えて実行しようとした時点で強制停止（無限ループ・フリーズ対策）
@@ -55,6 +58,7 @@ public final class ProgramRunner {
                 case JUMP -> engine.jump(block.dir());
             };
 
+            lastResult = result;
             stepCount++;
             Position pos = engine.getPosition();
             trace.add(new TraceStep(stepCount, block.id(), result, pos.x(), pos.y(), engine.getFacing(),
@@ -71,7 +75,11 @@ public final class ProgramRunner {
             return new RunResult(GameStatus.CLEARED, null, stepCount, trace);
         }
         if (engine.getStatus() == GameStatus.FAILED) {
-            return new RunResult(GameStatus.FAILED, FAIL_FELL_INTO_PIT, stepCount, trace);
+            // 失敗の理由は、最後の行動の結果から分かる（穴に落ちた／敵に敗北した）
+            String reason = (lastResult == ActionResult.DEFEATED_BY_ENEMY)
+                    ? FAIL_DEFEATED_BY_ENEMY
+                    : FAIL_FELL_INTO_PIT;
+            return new RunResult(GameStatus.FAILED, reason, stepCount, trace);
         }
         // まだプレイ中のまま最後まで来た = ゴールに着かなかった
         engine.markFailed();
