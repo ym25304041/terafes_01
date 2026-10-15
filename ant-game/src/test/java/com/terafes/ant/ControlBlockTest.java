@@ -46,9 +46,9 @@ final class ControlBlockTest {
     }
 
     static void run() {
-        Stage stage1 = StageRepository.findById(1).orElseThrow();
-        Stage stage2 = StageRepository.findById(2).orElseThrow();
-        Stage stage6 = StageRepository.findById(6).orElseThrow();
+        Stage stage1 = TestStages.stage(1);
+        Stage stage2 = TestStages.stage(2);
+        Stage stage6 = TestStages.stage(6);
 
         T.group("「待つ」ブロック");
         RunResult r = ProgramRunner.run(stage1, List.of(Block.waitBlock("w1"), Block.waitBlock("w2")));
@@ -75,13 +75,13 @@ final class ControlBlockTest {
 
         T.group("もし〜なら〜そうでなければ");
         r = ProgramRunner.run(stage1, List.of(Block.ifBlock("if", ConditionType.WALL_AHEAD, false,
-                List.of(move("up", Direction.UP)), List.of(right("go")))));
+                List.of(Block.turnBlock("up", Direction.UP)), List.of(right("go")))));
         T.eq("壁がないので『そうでなければ』が実行される", "go", r.trace().get(0).blockId());
         T.eq("条件の結果が記録される(偽)", List.of(new ConditionCheck("if", false)), r.trace().get(0).conditions());
         T.eq("条件を調べても1ステップは増えない", 1, r.stepCount());
 
         r = ProgramRunner.run(stage1, List.of(Block.ifBlock("if", ConditionType.WALL_AHEAD, true,
-                List.of(right("go")), List.of(move("up", Direction.UP)))));
+                List.of(right("go")), List.of(Block.turnBlock("up", Direction.UP)))));
         T.eq("『〜でない』を指定すると反転する", "go", r.trace().get(0).blockId());
         T.eq("反転後の結果が記録される(真)", List.of(new ConditionCheck("if", true)), r.trace().get(0).conditions());
 
@@ -152,7 +152,7 @@ final class ControlBlockTest {
                 + "{\"id\":\"c\",\"type\":\"WHILE\",\"condition\":\"ENEMY_COMING\",\"not\":true,"
                 + "\"body\":[{\"id\":\"d\",\"type\":\"WAIT\"}]},"
                 + "{\"id\":\"e\",\"type\":\"IF\",\"condition\":\"WALL_AHEAD\","
-                + "\"then\":[{\"id\":\"f\",\"type\":\"MOVE\",\"dir\":\"UP\"}],"
+                + "\"then\":[{\"id\":\"f\",\"type\":\"TURN\",\"dir\":\"UP\"}],"
                 + "\"else\":[{\"id\":\"g\",\"type\":\"JUMP\",\"dir\":\"DOWN\"}]},"
                 + "{\"id\":\"h\",\"type\":\"REPEAT\",\"count\":3,"
                 + "\"body\":[{\"id\":\"i\",\"type\":\"MOVE\",\"dir\":\"LEFT\"}]}]}");
@@ -164,7 +164,8 @@ final class ControlBlockTest {
         T.eq("WHILE の中身", "d", wh.body().get(0).id());
         Block iff = req.program().get(3);
         T.check("IF の「〜でない」の省略は false", !iff.negate());
-        T.eq("IF の「なら」の中身", Direction.UP, iff.body().get(0).dir());
+        T.eq("IF の「なら」の中身(向く)", BlockType.TURN, iff.body().get(0).type());
+        T.eq("IF の「なら」の中身の方向", Direction.UP, iff.body().get(0).dir());
         T.eq("IF の「そうでなければ」の中身", BlockType.JUMP, iff.elseBody().get(0).type());
         T.eq("REPEAT の回数", 3, req.program().get(4).count());
 
@@ -194,7 +195,7 @@ final class ControlBlockTest {
                         + "\"body\":[{\"id\":\"<img>\",\"type\":\"WAIT\"}]}]}");
         badRequest("入れ子の中の不正な方向", "INVALID_BLOCK",
                 "{\"stageId\":1,\"program\":[{\"id\":\"a\",\"type\":\"REPEAT\",\"count\":1,"
-                        + "\"body\":[{\"id\":\"b\",\"type\":\"MOVE\",\"dir\":\"NORTH\"}]}]}");
+                        + "\"body\":[{\"id\":\"b\",\"type\":\"TURN\",\"dir\":\"NORTH\"}]}]}");
 
         T.eq("6段までの入れ子は受け付ける", 1, RunRequest.parse(nestedRepeat(RunRequest.MAX_DEPTH)).program().size());
         badRequest("7段の入れ子は拒否", "PROGRAM_TOO_DEEP", nestedRepeat(RunRequest.MAX_DEPTH + 1));

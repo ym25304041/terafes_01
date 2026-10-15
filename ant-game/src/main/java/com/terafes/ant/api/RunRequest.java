@@ -19,7 +19,9 @@ import java.util.regex.Pattern;
  * <pre>
  * { "stageId": 6,
  *   "program": [
- *     { "id": "b1", "type": "MOVE", "dir": "RIGHT" },
+ *     { "id": "b0", "type": "TURN", "dir": "DOWN" },
+ *     { "id": "b1", "type": "MOVE" },
+ *     { "id": "bf", "type": "MOVE_FUNCTION", "dir": "RIGHT", "count": 3 },
  *     { "id": "b2", "type": "WHILE", "condition": "ENEMY_COMING", "not": false,
  *       "body": [ { "id": "b3", "type": "WAIT" } ] },
  *     { "id": "b4", "type": "IF", "condition": "WALL_AHEAD",
@@ -44,7 +46,7 @@ public record RunRequest(int stageId, List<Block> program) {
     /** 制御ブロックの入れ子の深さの上限（深すぎる入力でスタックを使い切られないようにする） */
     public static final int MAX_DEPTH = 6;
 
-    /** 「回くり返す」で指定できる回数の上限 */
+    /** 「回くり返す」「移動関数の移動回数」で指定できる回数の上限 */
     public static final int MAX_REPEAT_COUNT = 100;
 
     /**
@@ -123,11 +125,19 @@ public record RunRequest(int stageId, List<Block> program) {
         try {
             BlockType type = BlockType.parse(asStringOrNull(map.get("type")));
             switch (type) {
-                case MOVE, JUMP -> {
-                    return new Block(idText, type, Direction.parse(asStringOrNull(map.get("dir"))));
+                case TURN -> {
+                    return Block.turnBlock(idText, Direction.parse(asStringOrNull(map.get("dir"))));
                 }
-                case WAIT -> {
-                    return Block.waitBlock(idText);
+                case MOVE, JUMP, WAIT -> {
+                    // 向きは「今向いている方向」を使うので、方向の指定は読まない
+                    return new Block(idText, type, null);
+                }
+                case MOVE_FUNCTION -> {
+                    if (!(map.get("count") instanceof Long count) || count < 1 || count > MAX_REPEAT_COUNT) {
+                        throw new BadRequestException("INVALID_BLOCK");
+                    }
+                    return Block.moveFunction(idText, Direction.parse(asStringOrNull(map.get("dir"))),
+                            count.intValue());
                 }
                 default -> {
                     // 制御ブロック(IF / WHILE / REPEAT)は、入れ子の深さを制限する

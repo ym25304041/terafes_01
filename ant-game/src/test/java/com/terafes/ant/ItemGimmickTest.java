@@ -200,8 +200,8 @@ final class ItemGimmickTest {
         T.eq("e-E まで使える", ItemType.SUPPLY, mapOfRow2("SMeE....G").getInitialItems().get(new Position(1, 2)));
 
         T.group("ステージ3・4（ファイルから読み込み）");
-        Stage stage3 = StageRepository.findById(3).orElseThrow();
-        Stage stage4 = StageRepository.findById(4).orElseThrow();
+        Stage stage3 = TestStages.stage(3);
+        Stage stage4 = TestStages.stage(4);
 
         RunResult r = ProgramRunner.run(stage3, repeat(8, Direction.RIGHT));
         T.eq("ステージ3: 右8回でクリア", GameStatus.CLEARED, r.status());
@@ -213,14 +213,18 @@ final class ItemGimmickTest {
 
         // 物資を取らずに回り道するとドアが開かず失敗する
         List<Block> detour = new ArrayList<>();
-        detour.add(new Block("d0", BlockType.MOVE, Direction.UP));
+        detour.add(Block.turnBlock("t0", Direction.UP));
+        detour.add(Block.moveBlock("d0"));
+        detour.add(Block.turnBlock("t1", Direction.RIGHT));
         for (int i = 1; i <= 5; i++) {
-            detour.add(new Block("d" + i, BlockType.MOVE, Direction.RIGHT));
+            detour.add(Block.moveBlock("d" + i));
         }
-        detour.add(new Block("d6", BlockType.MOVE, Direction.DOWN));
-        detour.add(new Block("d7", BlockType.MOVE, Direction.RIGHT));
+        detour.add(Block.turnBlock("t2", Direction.DOWN));
+        detour.add(Block.moveBlock("d6"));
+        detour.add(Block.turnBlock("t3", Direction.RIGHT));
+        detour.add(Block.moveBlock("d7"));
         r = ProgramRunner.run(stage3, detour);
-        T.eq("物資を取らないとドアが開かない", ActionResult.BLOCKED_DOOR, r.trace().get(7).result());
+        T.eq("物資を取らないとドアが開かない", ActionResult.BLOCKED_DOOR, r.trace().get(11).result());
         T.eq("ステージ3: 失敗", GameStatus.FAILED, r.status());
 
         r = ProgramRunner.run(stage4, repeat(8, Direction.RIGHT));

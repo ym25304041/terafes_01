@@ -12,8 +12,14 @@ import java.util.function.Supplier;
 /**
  * アリの移動・ジャンプ・待機、敵の動き、ゲーム状態を管理するエンジンです。
  *
+ * 【向きのルール】
+ *   ・アリは上下左右のどれかを向いています（最初の向きはステージで決まり、指定がなければ右）。
+ *   ・「前へ移動」「前へジャンプ」は、今向いている方向へ進みます。
+ *   ・向きを変えるには turn(方向) を使います（これも1回の行動で、1ステップ進みます）。
+ *   ・条件の「目の前」も、向いている方向の1マス先です。
+ *
  * 【時間（ターン）のルール】
- *   ・アリが1回行動する（移動・ジャンプ・待つ）ごとに、時間が1ステップ進みます。
+ *   ・アリが1回行動する（向きを変える・移動・ジャンプ・待つ）ごとに、時間が1ステップ進みます。
  *     壁にぶつかって動けなかった場合や、ジャンプに失敗した場合も、1ステップ進みます。
  *   ・1ステップの順番は「アリが先に行動 → そのあと敵が動く」です。
  *   ・条件を調べる(check)だけでは、時間は進みません。
@@ -124,12 +130,22 @@ public final class GameEngine {
     }
 
     /**
+     * 最初の向きを右として、ゲームを始めます。
+     *
      * @param map ゲームで使うマップ。アリはマップのスタート地点から始まります
      */
     public GameEngine(GameMap map) {
+        this(map, Direction.RIGHT);
+    }
+
+    /**
+     * @param map         ゲームで使うマップ。アリはマップのスタート地点から始まります
+     * @param startFacing アリの最初の向き
+     */
+    public GameEngine(GameMap map, Direction startFacing) {
         this.map = map;
         this.position = map.getStart();
-        this.facing = Direction.RIGHT; // 初期の向きは右
+        this.facing = startFacing;
         this.status = GameStatus.PLAYING;
         // マップの初期配置をコピーして使う（元のマップは書き換えない）
         this.remainingItems = new HashMap<>(map.getInitialItems());
@@ -306,7 +322,41 @@ public final class GameEngine {
     }
 
     /**
-     * 指定した方向へ1マス移動します（上下左右の共通処理）。
+     * その場で、指定した方向を向きます。アリは動きませんが、時間は1ステップ進み、敵は動きます。
+     *
+     * @param dir 向く方向
+     * @return 行動の結果（TURNED。敵に倒された場合は DEFEATED_BY_ENEMY）
+     */
+    public ActionResult turn(Direction dir) {
+        return act(() -> {
+            facing = dir;
+            return ActionResult.TURNED;
+        });
+    }
+
+    /**
+     * 今向いている方向へ1マス移動します（プログラムの「移動」ブロック）。
+     *
+     * @return 行動の結果
+     */
+    public ActionResult moveForward() {
+        return act(() -> doMove(facing));
+    }
+
+    /**
+     * 今向いている方向へジャンプします（プログラムの「ジャンプ」ブロック）。
+     * 前方1マスの落とし穴を飛び越えて、2マス先へ着地します。
+     *
+     * @return 行動の結果
+     */
+    public ActionResult jumpForward() {
+        return act(() -> doJump(facing));
+    }
+
+    /**
+     * 指定した方向へ向きを変えて、そのまま1マス移動します（上下左右の共通処理）。
+     * 向きの変更と移動を、まとめて1ステップで行います。
+     * プログラムの実行には使わず、エンジンを直接動かす簡易操作（主にテスト）用です。
      *
      * @param dir 移動する方向
      * @return 行動の結果
@@ -316,7 +366,8 @@ public final class GameEngine {
     }
 
     /**
-     * 指定した方向へジャンプし、前方1マスの落とし穴を飛び越えて2マス先へ着地します。
+     * 指定した方向へ向きを変えて、そのままジャンプします。向きの変更とジャンプを、まとめて1ステップで行います。
+     * プログラムの実行には使わず、エンジンを直接動かす簡易操作（主にテスト）用です。
      *
      * @param dir ジャンプする方向
      * @return 行動の結果

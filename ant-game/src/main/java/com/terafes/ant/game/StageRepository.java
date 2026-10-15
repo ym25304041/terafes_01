@@ -121,6 +121,7 @@ public final class StageRepository {
      * 決まり:
      *   ・「;」で始まる行（コメント）と空行は無視する
      *   ・「name:」の行でステージ名を指定する（必須）
+     *   ・「facing:」の行でアリの最初の向きを指定する（省略可。right / left / up / down。省略すると right）
      *   ・「map:」の行より後の行が、マップの各行になる（必須。5行×9文字）
      *
      * @param id   ステージ番号（ファイル名から決まる）
@@ -130,6 +131,7 @@ public final class StageRepository {
      */
     public static Stage parse(int id, String text) {
         String name = null;
+        Direction facing = Direction.RIGHT;
         boolean inMap = false;
         List<String> rows = new ArrayList<>();
 
@@ -143,6 +145,8 @@ public final class StageRepository {
                 rows.add(line);
             } else if (line.startsWith("name:")) {
                 name = line.substring("name:".length()).strip();
+            } else if (line.startsWith("facing:")) {
+                facing = parseFacing(id, line.substring("facing:".length()).strip());
             } else if (line.equals("map:")) {
                 inMap = true;
             } else {
@@ -157,7 +161,7 @@ public final class StageRepository {
             throw new IllegalArgumentException("stage" + id + ".txt: map: の行がありません");
         }
 
-        Stage stage = new Stage(id, name, List.copyOf(rows));
+        Stage stage = new Stage(id, name, List.copyOf(rows), facing);
         try {
             stage.createMap(); // マップの形式（行数・文字数・S/G）を検査する
         } catch (IllegalArgumentException e) {
@@ -169,6 +173,16 @@ public final class StageRepository {
     // ------------------------------------------------------------------
     // 内部処理
     // ------------------------------------------------------------------
+
+    /** 「facing:」の値（right / left / up / down）を Direction に変換します。 */
+    private static Direction parseFacing(int id, String value) {
+        try {
+            return Direction.valueOf(value.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "stage" + id + ".txt: facing: には right / left / up / down のどれかを書いてください");
+        }
+    }
 
     /** フォルダが設定済みか確認して返します。 */
     private static Path requireDirectory() {

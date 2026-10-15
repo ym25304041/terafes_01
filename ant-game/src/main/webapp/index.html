@@ -8,7 +8,7 @@
 </head>
 <body>
   <h1>アント・コマンド 動作確認ページ</h1>
-  <p class="note">バックエンド(移動・ジャンプ・待つ・もし・の間・くり返し・敵)の動作確認用の簡易画面です。</p>
+  <p class="note">バックエンド(向き・移動・ジャンプ・待つ・移動関数・もし・の間・くり返し・敵)の動作確認用の簡易画面です。</p>
 
   <section>
     <label for="stageSelect">ステージ:</label>
@@ -30,6 +30,17 @@
   <section>
     <h2>ブロックを追加</h2>
     <div class="controls">
+      移動関数: 方向
+      <select id="funcDir">
+        <option value="UP">↑上</option>
+        <option value="DOWN">↓下</option>
+        <option value="LEFT">←左</option>
+        <option value="RIGHT" selected>→右</option>
+      </select>
+      移動回数:
+      <input type="number" id="funcCount" value="3" min="1" max="100">
+    </div>
+    <div class="controls">
       条件:
       <select id="condSelect">
         <option value="WALL_AHEAD">目の前に壁がある</option>
@@ -42,6 +53,7 @@
       <input type="number" id="repeatCount" value="3" min="1" max="100">
     </div>
     <div id="palette"></div>
+    <p class="note">「前へ移動」「前へジャンプ」は、アリが今向いている方向へ進みます(向きはマップの矢印と、持ち物の行の「向き」で確認できます)。「移動関数」は、方向を向いて回数ぶん移動します。</p>
     <p class="note">「もし」「の間」「回くり返す」は中にブロックを入れられます。入れたい枠の「ここに追加」をクリックしてから、ブロックを追加してください。</p>
   </section>
 

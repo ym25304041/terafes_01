@@ -25,9 +25,15 @@ final class ProgramRunnerTest {
         return new Block(id, BlockType.JUMP, d);
     }
 
-    /** 同じブロックを n 個並べたリストを作る */
+    /**
+     * 同じ方向への移動を n 回並べたリストを作る。
+     * アリの最初の向きは右なので、右以外のときは、最初に「向く」ブロックを入れる。
+     */
     private static List<Block> repeat(int n, Direction d) {
         List<Block> list = new ArrayList<>();
+        if (d != Direction.RIGHT) {
+            list.add(Block.turnBlock("t", d));
+        }
         for (int i = 0; i < n; i++) {
             list.add(move("b" + i, d));
         }
@@ -35,8 +41,8 @@ final class ProgramRunnerTest {
     }
 
     static void run() {
-        Stage stage1 = StageRepository.findById(1).orElseThrow();
-        Stage stage2 = StageRepository.findById(2).orElseThrow();
+        Stage stage1 = TestStages.stage(1);
+        Stage stage2 = TestStages.stage(2);
 
         T.group("ProgramRunner: ステージ1（まっすぐ進む）");
         RunResult r = ProgramRunner.run(stage1, repeat(8, Direction.RIGHT));
@@ -61,8 +67,10 @@ final class ProgramRunnerTest {
         T.eq("ゴールで止まるのでクリア", GameStatus.CLEARED, r.status());
 
         r = ProgramRunner.run(stage1, repeat(3, Direction.LEFT));
-        T.eq("壁・マップ外にぶつかってもステップは数える", 3, r.stepCount());
-        T.eq("マップ外にぶつかった結果が記録される", ActionResult.BLOCKED_OUT_OF_MAP, r.trace().get(0).result());
+        T.eq("向く1回 + 移動3回 = 4ステップ(マップ外にぶつかってもステップは数える)", 4, r.stepCount());
+        T.eq("1ステップ目は向きを変えた結果", ActionResult.TURNED, r.trace().get(0).result());
+        T.eq("向いた後の向きがトレースに入る", Direction.LEFT, r.trace().get(0).facing());
+        T.eq("マップ外にぶつかった結果が記録される", ActionResult.BLOCKED_OUT_OF_MAP, r.trace().get(1).result());
 
         T.group("ProgramRunner: ステージ2（ジャンプ）");
         List<Block> solution = new ArrayList<>();
@@ -86,10 +94,10 @@ final class ProgramRunnerTest {
         T.eq("落下の結果が記録される", ActionResult.FELL_INTO_PIT, r.trace().get(3).result());
 
         T.group("ProgramRunner: 最大ステップ数(100回)の制限");
-        // ステージ1で右・左を交互に繰り返す。ゴールには着かないまま100を超える
+        // 待つを150回並べる。ゴールには着かないまま100を超える
         List<Block> longProgram = new ArrayList<>();
         for (int i = 0; i < 150; i++) {
-            longProgram.add(move("c" + i, i % 2 == 0 ? Direction.RIGHT : Direction.LEFT));
+            longProgram.add(Block.waitBlock("c" + i));
         }
         r = ProgramRunner.run(stage1, longProgram);
         T.eq("101個目以降は実行されず失敗", GameStatus.FAILED, r.status());
