@@ -114,20 +114,27 @@ final class EnemyTest {
         T.check("別のエンジンでは敵が残っている", second.hasEnemyAt(new Position(2, 2)));
 
         T.group("ステージ5（ファイルから読み込み）");
-        var stage5 = StageRepository.findById(5).orElseThrow();
+        var stage5 = TestStages.stage(5);
         List<Block> solution = new ArrayList<>();
-        Direction[] route = {Direction.UP, Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.DOWN,
-                Direction.RIGHT, Direction.RIGHT, Direction.RIGHT, Direction.RIGHT, Direction.RIGHT,
-                Direction.RIGHT, Direction.RIGHT};
-        for (int i = 0; i < route.length; i++) {
-            solution.add(move("s" + i, route[i]));
+        // 上を向いて2歩、右を向いて1歩(武器)、下を向いて2歩、右を向いて7歩
+        solution.add(Block.turnBlock("t1", Direction.UP));
+        solution.add(move("m1", Direction.UP));
+        solution.add(move("m2", Direction.UP));
+        solution.add(Block.turnBlock("t2", Direction.RIGHT));
+        solution.add(move("m3", Direction.RIGHT));
+        solution.add(Block.turnBlock("t3", Direction.DOWN));
+        solution.add(move("m4", Direction.DOWN));
+        solution.add(move("m5", Direction.DOWN));
+        solution.add(Block.turnBlock("t4", Direction.RIGHT));
+        for (int i = 0; i < 7; i++) {
+            solution.add(move("r" + i, Direction.RIGHT));
         }
         RunResult r = ProgramRunner.run(stage5, solution);
         T.eq("武器を取って2体を倒してクリア", GameStatus.CLEARED, r.status());
-        T.eq("ステップ数は12", 12, r.stepCount());
-        T.eq("6歩目で1体目を討伐", List.of(defeated(2, 2)), r.trace().get(5).events());
-        T.eq("8歩目で2体目を討伐", List.of(defeated(4, 2)), r.trace().get(7).events());
-        T.check("最後も武器を持っている", r.trace().get(11).hasWeapon());
+        T.eq("向く4回 + 移動12回 = 16ステップ", 16, r.stepCount());
+        T.eq("10ステップ目で1体目を討伐", List.of(defeated(2, 2)), r.trace().get(9).events());
+        T.eq("12ステップ目で2体目を討伐", List.of(defeated(4, 2)), r.trace().get(11).events());
+        T.check("最後も武器を持っている", r.trace().get(15).hasWeapon());
 
         r = ProgramRunner.run(stage5, List.of(move("a", Direction.RIGHT), move("b", Direction.RIGHT),
                 move("c", Direction.RIGHT)));

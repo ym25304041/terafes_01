@@ -64,10 +64,11 @@ final class ApiTest {
         T.group("RunRequest（入力検証）");
         RunRequest ok = RunRequest.parse(
                 "{\"stageId\":2,\"program\":[{\"id\":\"b1\",\"type\":\"MOVE\",\"dir\":\"RIGHT\"},"
-                        + "{\"id\":\"b-2_X\",\"type\":\"JUMP\",\"dir\":\"LEFT\"}]}");
+                        + "{\"id\":\"b-2_X\",\"type\":\"TURN\",\"dir\":\"LEFT\"}]}");
         T.eq("ステージ番号", 2, ok.stageId());
         T.eq("ブロック数", 2, ok.program().size());
         T.eq("1つ目の種類", BlockType.MOVE, ok.program().get(0).type());
+        T.eq("2つ目の種類(向く)", BlockType.TURN, ok.program().get(1).type());
         T.eq("2つ目の方向", Direction.LEFT, ok.program().get(1).dir());
         T.eq("空のプログラムは受け付ける", 0,
                 RunRequest.parse("{\"stageId\":1,\"program\":[]}").program().size());
@@ -90,9 +91,9 @@ final class ApiTest {
         badRequest("未知のブロック種別", "INVALID_BLOCK",
                 "{\"stageId\":1,\"program\":[{\"id\":\"b1\",\"type\":\"HACK\",\"dir\":\"UP\"}]}");
         badRequest("未知の方向", "INVALID_BLOCK",
-                "{\"stageId\":1,\"program\":[{\"id\":\"b1\",\"type\":\"MOVE\",\"dir\":\"up\"}]}");
-        badRequest("方向がない", "INVALID_BLOCK",
-                "{\"stageId\":1,\"program\":[{\"id\":\"b1\",\"type\":\"MOVE\"}]}");
+                "{\"stageId\":1,\"program\":[{\"id\":\"b1\",\"type\":\"TURN\",\"dir\":\"up\"}]}");
+        badRequest("向くブロックに方向がない", "INVALID_BLOCK",
+                "{\"stageId\":1,\"program\":[{\"id\":\"b1\",\"type\":\"TURN\"}]}");
 
         StringBuilder many = new StringBuilder("{\"stageId\":1,\"program\":[");
         for (int i = 0; i <= RunRequest.MAX_BLOCKS; i++) {

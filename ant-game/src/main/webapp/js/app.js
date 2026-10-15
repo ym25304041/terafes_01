@@ -11,7 +11,9 @@
  * 【プログラムの持ち方】
  *   プログラムは「ブロックの配列」で、制御ブロックは中に配列を持ちます(入れ子)。
  *   この形は、そのままサーバー(api/run)へ送る JSON になります。
- *     行動ブロック : {id, type: 'MOVE'|'JUMP', dir} / {id, type: 'WAIT'}
+ *     コマンド     : {id, type: 'TURN', dir} / {id, type: 'MOVE'} / {id, type: 'JUMP'} / {id, type: 'WAIT'}
+ *                  (移動とジャンプは、アリが今向いている方向へ進む)
+ *     関数         : {id, type: 'MOVE_FUNCTION', dir, count}  (方向を向いて、回数ぶん移動する)
  *     もし         : {id, type: 'IF', condition, not, then: [...], else: [...]}
  *     の間         : {id, type: 'WHILE', condition, not, body: [...]}
  *     回くり返す   : {id, type: 'REPEAT', count, body: [...]}
@@ -19,7 +21,9 @@
 
 // 方向・種類・条件の表示名(画面表示用)
 const DIR_LABEL = { UP: '↑上', DOWN: '↓下', LEFT: '←左', RIGHT: '→右' };
-const TYPE_LABEL = { MOVE: '移動', JUMP: 'ジャンプ', WAIT: '待つ' };
+const TYPE_LABEL = { MOVE: '前へ移動', JUMP: '前へジャンプ', WAIT: '待つ' };
+// アリの向きを示す矢印(マップ上でアリの向きを表すために使う)
+const FACING_ARROW = { UP: '▲', DOWN: '▼', LEFT: '◀', RIGHT: '▶' };
 const COND_LABEL = {
   WALL_AHEAD: '目の前に壁がある',
   ENEMY_AHEAD: '目の前に敵がいる',
@@ -62,12 +66,15 @@ const inventoryEl = document.getElementById('inventory');
 const condSelect = document.getElementById('condSelect');
 const notCheck = document.getElementById('notCheck');
 const repeatCount = document.getElementById('repeatCount');
+const funcDir = document.getElementById('funcDir');
+const funcCount = document.getElementById('funcCount');
 
 // 状態
 let stage = null;          // 読み込んだステージ情報
 let view = [];             // 表示用のマップ(2次元配列)。アイテム取得やドア開放で書き換える
 let enemies = [];          // 今、画面に出す敵の位置 [{id, x, y}]
 let inventory = { supply: false, weapon: false }; // 画面に表示する持ち物
+let facing = 'RIGHT';      // 画面に表示するアリの向き
 let program = [];          // ブロックの配列(入れ子)
 let target = program;      // 次にブロックを追加する先の配列(選んだ枠)
 let nextBlockNo = 1;       // ブロックIDの連番
@@ -108,6 +115,7 @@ function resetView() {
   view = stage.rows.map((row) => row.replace(/X/g, '.').split(''));
   enemies = stage.enemies.map((e) => ({ id: e.id, x: e.x, y: e.y }));
   inventory = { supply: false, weapon: false };
+  facing = stage.facing; // アリの最初の向き(ステージで決まる)
 }
 
 /** マップを描く。antPos があればその位置にアリを表示する。 */
@@ -132,12 +140,15 @@ function drawGrid(antPos) {
       }
       if (hasAnt) {
         cell.textContent = hasEnemy ? '💥' : '🐜'; // 同じマスで戦闘になった
+        cell.classList.add('ant');
+        cell.dataset.facing = FACING_ARROW[facing]; // アリの向きを、マスの隅の矢印で表す
       }
       gridEl.appendChild(cell);
     });
   });
   inventoryEl.textContent = '持ち物: 物資 ' + (inventory.supply ? '📦あり' : 'なし')
-    + ' / 武器 ' + (inventory.weapon ? '⚔あり' : 'なし');
+    + ' / 武器 ' + (inventory.weapon ? '⚔あり' : 'なし')
+    + ' / 向き ' + FACING_ARROW[facing];
 }
 
 /** 自動で起きた出来事(取得・スイッチ作動・ドアが開く)を表示用マップに反映する。 */
@@ -174,8 +185,9 @@ async function loadStage(id) {
 
 /** ブロック1つの見出し(1行ぶんの文字)を作る。 */
 function labelOf(b) {
-  if (b.type === 'MOVE' || b.type === 'JUMP') { return TYPE_LABEL[b.type] + ' ' + DIR_LABEL[b.dir]; }
-  if (b.type === 'WAIT') { return TYPE_LABEL.WAIT; }
+  if (b.type === 'TURN') { return DIR_LABEL[b.dir] + ' を向く'; }
+  if (b.type === 'MOVE' || b.type === 'JUMP' || b.type === 'WAIT') { return TYPE_LABEL[b.type]; }
+  if (b.type === 'MOVE_FUNCTION') { return '移動関数( ' + DIR_LABEL[b.dir] + ' , ' + b.count + ' 回 )'; }
   const notText = b.not ? 'でない' : '';
   if (b.type === 'IF') { return 'もし [' + COND_LABEL[b.condition] + ']' + notText + ' なら'; }
   if (b.type === 'WHILE') { return '[' + COND_LABEL[b.condition] + ']' + notText + ' の間'; }
@@ -276,11 +288,12 @@ function buildPalette() {
     paletteEl.appendChild(btn);
   };
 
-  ['MOVE', 'JUMP'].forEach((type) => {
-    ['UP', 'DOWN', 'LEFT', 'RIGHT'].forEach((dir) => {
-      addButton(TYPE_LABEL[type] + ' ' + DIR_LABEL[dir], () => ({ type: type, dir: dir }));
-    });
+  // コマンド: 向く(上下左右)・前へ移動・前へジャンプ・待つ
+  ['UP', 'DOWN', 'LEFT', 'RIGHT'].forEach((dir) => {
+    addButton(DIR_LABEL[dir] + ' を向く', () => ({ type: 'TURN', dir: dir }));
   });
+  addButton('前へ移動', () => ({ type: 'MOVE' }));
+  addButton('前へジャンプ', () => ({ type: 'JUMP' }));
   addButton('待つ', () => ({ type: 'WAIT' }));
 
   // 制御ブロック: 条件の選択欄・「でない」・回数の入力を読み取って作る
@@ -290,6 +303,11 @@ function buildPalette() {
   addButton('…の間', () => ({
     type: 'WHILE', condition: condSelect.value, not: notCheck.checked, body: []
   }));
+  // 関数: 方向と移動回数を、選択欄と入力欄から読み取って作る
+  addButton('移動関数', () => {
+    const n = Math.min(100, Math.max(1, parseInt(funcCount.value, 10) || 1));
+    return { type: 'MOVE_FUNCTION', dir: funcDir.value, count: n };
+  });
   addButton('回くり返す', () => {
     // 回数は 1〜100 の整数に収める(サーバーも同じ範囲を検査する)
     const n = Math.min(100, Math.max(1, parseInt(repeatCount.value, 10) || 1));
@@ -330,6 +348,7 @@ async function runProgram() {
       applyEvents(t.events);
       inventory = t.inventory;
       enemies = t.enemies;
+      facing = t.facing;
       drawGrid({ x: t.x, y: t.y });
       if (RESULT_NOTE[t.result]) { showMessage(RESULT_NOTE[t.result], ''); }
       await sleep(400);

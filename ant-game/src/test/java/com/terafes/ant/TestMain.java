@@ -23,6 +23,7 @@ public final class TestMain {
         EnemyTest.run();
         PatrolTest.run();
         ControlBlockTest.run();
+        FacingTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

@@ -9,8 +9,10 @@ import java.util.List;
  * プログラムを構成するブロック1つぶんです。制御ブロックは、中にブロックを持てます（入れ子）。
  *
  * ブロックの種類によって、使う項目が違います（使わない項目は null / false / 0 / 空のリスト）。
- *   MOVE / JUMP : dir
- *   WAIT        : なし
+ *   TURN          : dir（向く方向）
+ *   MOVE / JUMP   : なし（今向いている方向に進む）
+ *   WAIT          : なし
+ *   MOVE_FUNCTION : dir（向く方向）, count（移動回数）
  *   IF          : condition, negate, body（「なら」の側）, elseBody（「そうでなければ」の側）
  *   WHILE       : condition, negate, body
  *   REPEAT      : count, body
@@ -27,9 +29,29 @@ import java.util.List;
 public record Block(String id, BlockType type, Direction dir, ConditionType condition, boolean negate,
                     int count, List<Block> body, List<Block> elseBody) {
 
-    /** 移動・ジャンプ・待つ のような、中身を持たないブロックを作る。dir は WAIT のとき null でよい。 */
+    /** 向く・移動・ジャンプ・待つ のような、中身を持たないブロックを作る。dir は TURN 以外では null でよい。 */
     public Block(String id, BlockType type, Direction dir) {
         this(id, type, dir, null, false, 0, List.of(), List.of());
+    }
+
+    /** 「向く」ブロックを作る。 */
+    public static Block turnBlock(String id, Direction dir) {
+        return new Block(id, BlockType.TURN, dir);
+    }
+
+    /** 「移動」ブロックを作る（今向いている方向へ1マス）。 */
+    public static Block moveBlock(String id) {
+        return new Block(id, BlockType.MOVE, null);
+    }
+
+    /** 「ジャンプ」ブロックを作る（今向いている方向へ）。 */
+    public static Block jumpBlock(String id) {
+        return new Block(id, BlockType.JUMP, null);
+    }
+
+    /** 「移動関数」ブロックを作る（方向を向いて、回数ぶん移動する）。 */
+    public static Block moveFunction(String id, Direction dir, int count) {
+        return new Block(id, BlockType.MOVE_FUNCTION, dir, null, false, count, List.of(), List.of());
     }
 
     /** 「待つ」ブロックを作る。 */

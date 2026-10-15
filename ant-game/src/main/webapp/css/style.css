@@ -13,6 +13,10 @@ section { margin: 12px 0; }
 /* 接敵ゾーン(敵が往復する範囲)は薄い赤。敵のいるマスは濃いピンク */
 .cell.zone { background: #f4d6cf; }
 .cell.enemy { background: #e9a8a0; }
+/* アリのいるマスは、向いている方向を示す矢印を、マスの隅に表示する */
+.cell { position: relative; }
+.cell.ant::after { content: attr(data-facing); position: absolute; right: 3px; bottom: 1px;
+                   font-size: 14px; color: #1a4d8f; }
 
 /* 操作部品 */
 .controls { margin-bottom: 6px; }

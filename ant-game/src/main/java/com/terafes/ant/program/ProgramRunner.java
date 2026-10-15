@@ -8,6 +8,7 @@ import com.terafes.ant.game.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * ブロックのリスト（プログラム）を上から順に実行し、結果を記録するクラスです。
@@ -51,7 +52,7 @@ public final class ProgramRunner {
      * @return 実行結果（トレース付き）
      */
     public static RunResult run(Stage stage, List<Block> program) {
-        GameEngine engine = new GameEngine(stage.createMap());
+        GameEngine engine = new GameEngine(stage.createMap(), stage.startFacing());
         Execution execution = new Execution(engine);
         execution.runBlocks(program);
 
@@ -124,8 +125,11 @@ public final class ProgramRunner {
                 return false;
             }
             switch (block.type()) {
-                case MOVE, JUMP, WAIT -> {
+                case TURN, MOVE, JUMP, WAIT -> {
                     return runAction(block);
+                }
+                case MOVE_FUNCTION -> {
+                    return runMoveFunction(block);
                 }
                 case IF -> {
                     // 条件が成り立てば「なら」の側、成り立たなければ「そうでなければ」の側を実行する
@@ -161,27 +165,58 @@ public final class ProgramRunner {
         }
 
         /**
-         * 行動ブロック（移動・ジャンプ・待つ）を1回実行し、トレースに記録します。
+         * コマンド（向く・移動・ジャンプ・待つ）を1回実行し、トレースに記録します。
          *
          * @return 続けて実行してよければ true（クリアか失敗が決まったら false）
          */
         private boolean runAction(Block block) {
+            return perform(block.id(), () -> switch (block.type()) {
+                case TURN -> engine.turn(block.dir());
+                case MOVE -> engine.moveForward();
+                case JUMP -> engine.jumpForward();
+                default -> engine.waitOneTurn();
+            });
+        }
+
+        /**
+         * 移動関数を実行します。「方向を向く」→「回数ぶん前へ移動」を、コマンドを並べたのと同じ形で行います。
+         * 途中で壁にぶつかって動けなくても、残りの移動は続けます（動けなかった行動も1ステップに数えます）。
+         * トレースには、すべてのステップに、この関数ブロックのIDを記録します。
+         *
+         * @return 続けて実行してよければ true（クリア・失敗・上限超過なら false）
+         */
+        private boolean runMoveFunction(Block block) {
+            if (!perform(block.id(), () -> engine.turn(block.dir()))) {
+                return false;
+            }
+            for (int i = 0; i < block.count(); i++) {
+                if (!perform(block.id(), engine::moveForward)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * アリの行動を1回実行し（時間が1ステップ進む）、トレースに記録します。
+         *
+         * @param blockId 記録するブロックのID（画面のハイライト用）
+         * @param action  実行する行動
+         * @return 続けて実行してよければ true（クリアか失敗が決まったら false）
+         */
+        private boolean perform(String blockId, Supplier<ActionResult> action) {
             // 上限を超えて行動しようとした時点で強制停止（無限ループ・フリーズ対策）
             if (steps >= MAX_STEPS) {
                 stopReason = FAIL_STEP_LIMIT;
                 return false;
             }
 
-            ActionResult result = switch (block.type()) {
-                case MOVE -> engine.move(block.dir());
-                case JUMP -> engine.jump(block.dir());
-                default -> engine.waitOneTurn();
-            };
+            ActionResult result = action.get();
 
             lastResult = result;
             steps++;
             Position pos = engine.getPosition();
-            trace.add(new TraceStep(steps, block.id(), result, pos.x(), pos.y(), engine.getFacing(),
+            trace.add(new TraceStep(steps, blockId, result, pos.x(), pos.y(), engine.getFacing(),
                     engine.getLastEvents(), engine.hasSupply(), engine.hasWeapon(),
                     engine.getEnemyStates(), List.copyOf(pendingConditions)));
             pendingConditions.clear();
