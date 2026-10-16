@@ -75,7 +75,6 @@
   // 状態
   let stage = null;          // 読み込んだステージ情報
   let view = [];             // 表示用のマップ(2次元配列の記号)。アイテム取得・ドア開放などで書き換える
-  let letters = [];          // スイッチ・ドアの記号(a〜e)。バッジの表示に使う
   let cellEls = [];          // マスの要素(cellEls[y][x])
   let antEl = null;          // アリロボットの要素
   let enemyEls = new Map();  // 敵のID → 敵の要素
@@ -112,7 +111,7 @@
     return 'road';                            // '.'(道)、'M'・'W'(アイテムのある道)
   }
 
-  /** 1マスぶんの表示(タイル・アイテム・記号のバッジ)を作り直す。 */
+  /** 1マスぶんの表示(タイル・アイテム)を作り直す。 */
   function updateCell(x, y) {
     const cell = cellEls[y][x];
     const ch = view[y][x];
@@ -120,11 +119,6 @@
     cell.appendChild(AntAssets.tile(tileKeyOf(ch)));
     // 床のアイテム(最初から置いてあるものと、捨てたもの)
     if (floorItems[y][x]) { cell.appendChild(AntAssets.item(floorItems[y][x])); }
-    const letter = letters[y][x];
-    if (letter) {
-      // スイッチとドアは、対応する記号(A〜E)を、バッジで表示する
-      cell.appendChild(AntUi.el('span', 'badge badge-' + letter, letter.toUpperCase()));
-    }
   }
 
   /** マップの 9×5 のマスを作る(最初に1回だけ)。 */
@@ -160,7 +154,8 @@
   function setFacing(f) {
     facing = f;
     const sprite = antEl.querySelector('.sprite');
-    if (sprite) { sprite.src = AntAssets.url(AntAssets.unitFile('ant', f)); }
+    // 武器を持っているときは、武器を背負った姿の画像に切り替える
+    if (sprite) { sprite.src = AntAssets.url(AntAssets.unitFile('ant', f, held === 'WEAPON')); }
     // 向きごとの画像がないときは、右向きのとき左右反転する(元の絵は左向き)
     const hasFacingImage = !!AntAssets.MANIFEST.units.ant.facing[f];
     antEl.classList.toggle('face-right', !hasFacingImage && f === 'RIGHT' && AntAssets.antFlipsWhenRight());
@@ -191,16 +186,12 @@
     view = stage.rows.map((row) => row.replace(/[XMW]/g, '.').split(''));
     // アイテムは、地形とは別に、床のアイテムとして覚える(M=物資、W=武器)
     floorItems = stage.rows.map((row) => row.split('').map((ch) => (ch === 'M' ? 'supply' : ch === 'W' ? 'weapon' : null)));
-    letters = stage.rows.map((row) => row.split('').map((ch) => {
-      if (ch >= 'a' && ch <= 'e') { return ch; }
-      if (ch >= 'A' && ch <= 'E') { return ch.toLowerCase(); }
-      return '';
-    }));
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) { updateCell(x, y); }
     }
 
-    // アリ
+    // アリ(持ち物は空に戻してから作る。武器を持った姿の画像にならないように)
+    held = null;
     unitsEl.textContent = '';
     antEl = AntUi.el('div', 'unit ant');
     antEl.appendChild(makeUnitImage('ant', '🐜'));
@@ -548,7 +539,7 @@
   function playStep(t) {
     highlight(t.blockId, t.conditions);
     applyEvents(t.events);
-    held = t.heldItem;
+    held = t.heldItem; // (アリの画像を、武器を持った姿に切り替える判断にも使う)
 
     // アリ
     placeUnit(antEl, t.x, t.y);

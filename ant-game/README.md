@@ -49,16 +49,15 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 | 背景（タイトル／ステージ選択） | `bg-title.png` / `bg-stages.png` | 未用意（グラデーション背景） |
 | 背景（ゲーム／結果） | `game-bg.png` | |
 | タイトルロゴ | `title-logo.png` | 未用意（文字のタイトルを表示） |
-| マス: 道・スタート・ゴール・壁・落とし穴 | `grass.png` `start.png` `goal.png` `wall.png` `pit.png` | 上から見た正方形の絵を推奨。斜めの絵は `crop` で調整 |
-| マス: 接敵ゾーン | `zone.png` | 未用意（道の上に赤色を重ねる） |
-| マス: スイッチ（off／on） | `switch-off.png` / `switch-on.png` | 未用意（仮表示）。記号(A〜E)はバッジで重ねる |
-| マス: ドア（閉／開） | `door-closed.png` / `door-open.png` | 未用意（仮表示） |
-| アイテム（物資／武器） | `item-supply.png` / `item-weapon.png` | 背景が透明な画像。マスの上に重ねる |
-| アリロボット | `ant.png` | 向きごとの画像は `facing` に指定（なければ左右反転で代用） |
+| マス: 道・ゴール・壁・落とし穴 | `grass.webp` `goal.webp` `wall.webp` `pit.webp` | 上から見た正方形の絵（`crop` は不要）。スタート地点は専用の絵がなく、道と同じ絵を使う |
+| マス: 接敵ゾーン | `zone.webp` | 未用意（道の上に赤色を重ねる） |
+| マス: スイッチ（off／on） | `switch-off.webp` / `switch-on.webp` | 作動前／作動後 |
+| マス: ドア（閉／開） | `door-closed.webp` / `door-open.webp` | 閉じている／開いている |
+| アイテム（物資／武器） | `item-supply.webp`（木箱） / `item-weapon.webp`（砲台） | 背景が透明な画像。マスの上に重ねる |
+| アリロボット | `ant.png`（通常） / `ant-armed.webp`（**武器を持っているとき**） | 武器を持つと、後者の画像に切り替わる。向きごとの画像は `facing` に指定（なければ左右反転で代用） |
 | 敵（動かない／巡回） | `spider.png` / `bee.png` | 背景が透明な画像 |
 | リザルト（クリア／失敗） | `result-clear.png` / `result-fail.png` | |
 
-- `assets/place.png` は、今の画面では使っていない。
 - 元の見た目の見本は `view_sample/`（そのまま残してある）。
 
 ## ステージファイル（マップの編集方法）
