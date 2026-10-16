@@ -14,6 +14,7 @@
  * 【画像の作り方の目安】
  *   ・マスの画像（tiles）: 正方形。上から見下ろした絵で、隙間なくタイルとして並べます。
  *     ぴったり正方形の絵なら crop を指定する必要はありません（省略すれば全体を表示します）。
+ *   ・アリロボットは、武器を持っているときだけ、別の画像（armedFile）に切り替わります。
  *   ・アリ・敵・アイテムの画像: 背景が透明な PNG。マスの上に重ねて表示します。
  *   ・背景・ロゴ・リザルトの画像: 自由なサイズ。
  *
@@ -51,32 +52,37 @@ const AntAssets = (() => {
     },
 
     // マップの各マス（地形）。全マスを隙間なく並べます
+    // ぴったり正方形の絵なので、crop（切り抜き）は使っていません。bg は、絵の角が丸く透明な部分を埋める色です
     tiles: {
-      road:  { file: 'grass.png', crop: { cx: 50, cy: 41, zoom: 1.8 }, bg: '#8fd13a' },   // 道
-      start: { file: 'start.png', crop: { cx: 50, cy: 47, zoom: 1.5 }, bg: '#8fd13a' },   // スタート地点
-      goal:  { file: 'goal.png',  crop: { cx: 50, cy: 58, zoom: 1.4 }, bg: '#8fd13a' },   // ゴール
-      wall:  { file: 'wall.png',  crop: { cx: 50, cy: 52, zoom: 1.4 }, bg: '#9aa3b5' },   // 壁
-      pit:   { file: 'pit.png',   crop: { cx: 50, cy: 50, zoom: 1.25 }, bg: '#3b2414' },  // 落とし穴
+      road:  { file: 'grass.webp', bg: '#7fcf2a' },   // 道（草）
+      start: { file: 'grass.webp', bg: '#7fcf2a' },   // スタート地点（専用の絵がないので、道と同じ）
+      goal:  { file: 'goal.webp',  bg: '#7fcf2a' },   // ゴール（旗）
+      wall:  { file: 'wall.webp',  bg: '#2a303c' },   // 壁（石）
+      pit:   { file: 'pit.webp',   bg: '#7fcf2a' },   // 落とし穴
       // 接敵ゾーン（敵が往復する範囲）。画像がなければ、道の上に赤い色を重ねます
-      zone:  { file: 'zone.png', fallbackTile: 'road', tint: 'rgba(255, 70, 70, 0.38)' },
-      // スイッチ（作動前・作動後）とドア（閉じている・開いている）。記号(a〜e / A〜E)は文字で重ねます
-      'switch-off':  { file: 'switch-off.png',  fallback: { glyph: '🔘', bg: '#b9c6d8' } },
-      'switch-on':   { file: 'switch-on.png',   fallback: { glyph: '✅', bg: '#9fe0a8' } },
-      'door-closed': { file: 'door-closed.png', fallback: { glyph: '🚪', bg: '#b9824a' } },
-      'door-open':   { file: 'door-open.png',   fallback: { glyph: '▫', bg: '#d9c7a1' } }
+      zone:  { file: 'zone.webp', fallbackTile: 'road', tint: 'rgba(255, 70, 70, 0.38)' },
+      // スイッチ（off＝作動前／on＝作動後）とドア（閉／開）
+      'switch-off':  { file: 'switch-off.webp',  bg: '#7fcf2a', fallback: { glyph: '🔘', bg: '#b9c6d8' } },
+      'switch-on':   { file: 'switch-on.webp',   bg: '#7fcf2a', fallback: { glyph: '✅', bg: '#9fe0a8' } },
+      'door-closed': { file: 'door-closed.webp', bg: '#2a303c', fallback: { glyph: '🚪', bg: '#b9824a' } },
+      'door-open':   { file: 'door-open.webp',   bg: '#2a303c', fallback: { glyph: '▫', bg: '#d9c7a1' } }
     },
 
     // アイテム（マスの上に重ねる、背景が透明な画像）
     items: {
-      supply: { file: 'item-supply.png', fallback: { glyph: '📦' } },   // 物資
-      weapon: { file: 'item-weapon.png', fallback: { glyph: '⚔' } }     // 武器
+      supply: { file: 'item-supply.webp', fallback: { glyph: '📦' } },   // 物資（木箱）
+      weapon: { file: 'item-weapon.webp', fallback: { glyph: '⚔' } }     // 武器（砲台）
     },
 
     // アリロボットと敵（背景が透明な画像）
     units: {
+      // armedFile: 武器を持っているときの、アリロボットの画像（持っていないときは file）
       // facing に、向きごとの画像を書くと、向きに合わせて画像が切り替わります（なければ null のまま）。
       // null のときは、1枚の画像を、左右の向きに合わせて反転して使います。
-      ant: { file: 'ant.png', facing: { UP: null, DOWN: null, LEFT: null, RIGHT: null }, flipWhenRight: true },
+      ant: {
+        file: 'ant.png', armedFile: 'ant-armed.webp',
+        facing: { UP: null, DOWN: null, LEFT: null, RIGHT: null }, flipWhenRight: true
+      },
       enemyStatic: { file: 'spider.png', fallback: { glyph: '🕷' } },   // 動かない敵
       enemyPatrol: { file: 'bee.png', fallback: { glyph: '🐝' } }       // 巡回する敵
     }
@@ -181,21 +187,26 @@ const AntAssets = (() => {
    * アリロボット・敵の画像の要素を返します。
    * @param kind    'ant' / 'enemyStatic' / 'enemyPatrol'
    * @param facing  アリの向き（'UP' など）。向きごとの画像があれば、それを使う
+   * @param armed   武器を持っているか（アリだけ。true なら、武器を持った姿の画像を使う）
    */
-  function unitImage(kind, facing) {
+  function unitImage(kind, facing, armed) {
     const def = MANIFEST.units[kind];
     const img = new Image();
     img.alt = '';
     img.draggable = false;
     img.className = 'sprite';
-    img.src = url(unitFile(kind, facing));
+    img.src = url(unitFile(kind, facing, armed));
     return img;
   }
 
-  /** アリ・敵の画像のファイル名を返します（向きごとの画像があれば、それを優先）。 */
-  function unitFile(kind, facing) {
+  /**
+   * アリ・敵の画像のファイル名を返します。
+   * 武器を持っているアリは armedFile（なければ通常の画像）。向きごとの画像があれば、それを優先します。
+   */
+  function unitFile(kind, facing, armed) {
     const def = MANIFEST.units[kind];
     if (def.facing && facing && def.facing[facing]) { return def.facing[facing]; }
+    if (armed && def.armedFile) { return def.armedFile; }
     return def.file;
   }
 

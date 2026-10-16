@@ -73,7 +73,8 @@ public class RunServlet extends HttpServlet {
                 return;
             }
 
-            RunResult result = ProgramRunner.run(stage.get(), request.program());
+            // テスト実行(testRun)のときは、ゴールの判定をしない
+            RunResult result = ProgramRunner.run(stage.get(), request.program(), !request.testRun());
             ApiSupport.writeJson(resp, HttpServletResponse.SC_OK, ApiSupport.toResponseBody(result));
 
         } catch (BadRequestException e) {

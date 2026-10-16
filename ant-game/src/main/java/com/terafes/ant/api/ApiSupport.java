@@ -60,10 +60,7 @@ final class ApiSupport {
             step.put("y", t.y());
             step.put("facing", t.facing());
             step.put("events", toEventList(t.events()));
-            Map<String, Object> inventory = new LinkedHashMap<>();
-            inventory.put("supply", t.hasSupply());
-            inventory.put("weapon", t.hasWeapon());
-            step.put("inventory", inventory);
+            step.put("heldItem", t.heldItem()); // 持っているアイテム(なければ null)
             step.put("enemies", toEnemyList(t.enemies()));
             List<Object> conditions = new ArrayList<>();
             for (ConditionCheck c : t.conditions()) {

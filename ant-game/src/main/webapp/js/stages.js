@@ -6,6 +6,7 @@
  * ステージファイルがまだないステージは、「じゅんびちゅう」の押せないカードになります。
  */
 (async () => {
+  AntRetry.discard(); // ステージを選び直すので、やり直し用に預かっていたプログラムは捨てる
   const SLOTS = 9; // 表示するステージの数
   const screen = document.getElementById('screen');
   AntAssets.applyBackground(screen, 'stages', 'linear-gradient(180deg,#74d3ff 0 31%,#e8fbff 31% 100%)');

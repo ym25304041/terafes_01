@@ -134,7 +134,7 @@ final class EnemyTest {
         T.eq("向く4回 + 移動12回 = 16ステップ", 16, r.stepCount());
         T.eq("10ステップ目で1体目を討伐", List.of(defeated(2, 2)), r.trace().get(9).events());
         T.eq("12ステップ目で2体目を討伐", List.of(defeated(4, 2)), r.trace().get(11).events());
-        T.check("最後も武器を持っている", r.trace().get(15).hasWeapon());
+        T.eq("最後も武器を持っている", com.terafes.ant.game.ItemType.WEAPON, r.trace().get(15).heldItem());
 
         r = ProgramRunner.run(stage5, List.of(move("a", Direction.RIGHT), move("b", Direction.RIGHT),
                 move("c", Direction.RIGHT)));

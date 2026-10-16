@@ -15,11 +15,12 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - 移動は1マス。壁・マップ外へは動かない（ゲームは続行、1ステップとして数える）。
 - 落とし穴へ通常移動 → 落下して失敗。
 - ジャンプ: 前方1マスが落とし穴のときだけ成功し2マス先へ着地。穴でない／着地点が壁・マップ外なら失敗（その場から動かない）。着地点が穴なら落下、ゴールならクリア。
+- **アイテムを捨てる:** 持っているアイテムを、今いるマスに置く（1ステップ。敵も動く）。置いたアイテムは、そのマスに**再び着いたとき**に自動で拾える（立ったままでは拾わない）。何も持っていないとき、今いるマスにすでにアイテムがあるときは、捨てられない（何も起きないが1ステップ進む）。
 - **向き:** アリは上下左右のどれかを向く。最初の向きはステージファイルの `facing:`（省略で右）。「移動」「ジャンプ」は**向いている方向**へ進み、向きを変えるには「向く」を使う。条件の「目の前」も向いている方向の1マス先。
 - **関数:** コマンドをまとめたブロック。**移動関数**（方向・移動回数）は「その方向を向く → 回数ぶん移動」で、`向く`と`移動`を並べたのと同じ（回数+1 ステップ）。途中で動けなくても残りの移動は続け、クリア・失敗・上限超過で止まる。
 - **時間（ターン）:** アリが1回行動（向く・移動・ジャンプ・待つ）するごとに1ステップ。動けなかった行動・ジャンプ失敗も1ステップ。順番は「アリが先 → 敵が後」。条件を調べるだけでは時間は進まない。
 - 最大100ステップ（行動の回数）。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。さらに、ブロックの実行・条件の評価・くり返しの合計が1000回を超えたら停止（`LOOP_LIMIT_EXCEEDED`。中身が空のループ対策）。
-- **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。物資と武器を別々に1つずつ持てる。同じ種類を持っているときは取得せず床に残す。
+- **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。**持てるアイテムは1つだけ**（物資か武器。スロットは1つ）。何かを持っているときは、アイテムのマスに着いても取得せず床に残す。
 - **スイッチ`a〜e`:** 物資を持って乗ると物資を消費して作動し、同じ記号のドア`A〜E`がすべて開く。物資がなければ何も起きない（通れるマス）。作動済みのスイッチは物資を消費しない。
 - **ドア:** 閉じている間は壁と同じで通れず（`BLOCKED_DOOR`）、ジャンプの着地点にもなれない。一度開いたら開いたまま。
 - **敵`X`（画面では🐍、自動戦闘）:** 敵のいる道のマスに着く（移動・ジャンプの着地）と戦闘になる。武器を持っていれば討伐して進め、敵はマップから消える（武器は減らないので何体でも倒せる）。武器がなければ敗北してゲームオーバー（`DEFEATED_BY_ENEMY`）。物資だけでは討伐できない。
@@ -34,9 +35,11 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 | ステージ選択 | `stages.html` | 9ステージのカード（ステージファイルの `name:` / `description:` を表示） |
 | ゲームプレイ | `game.html?stage=N` | マップ・ブロックのパレット・プログラム。実行すると結果を再生 |
 | 結果（クリア） | `result-clear.html?stage=N&steps=回数` | 実行回数を表示。「次のステージへ」「ステージ選択へ戻る」 |
-| 結果（失敗） | `result-fail.html?stage=N&reason=理由` | 失敗理由を表示。「もう一度挑戦する」「ステージ選択へ戻る」 |
+| 結果（失敗） | `result-fail.html?stage=N&reason=理由` | 失敗理由を表示。「もう一度挑戦する」で、失敗した時のプログラムを復元して再開（`game.html?stage=N&retry=1`）。「ステージ選択へ戻る」 |
 
 画面遷移: タイトル → ステージ選択 → ゲームプレイ → 結果。URLのパラメータは、数値・許可した値だけを受け付ける。
+
+**失敗後のやり直し:** 失敗した時点のプログラムを、`sessionStorage`（タブの中だけに残る一時保存。タブを閉じると消える。サーバーへは送らない）に預け（`AntRetry`、`js/common.js`）、「もう一度挑戦する」で復元する。預けたプログラムは、ゲーム画面を開いた時に必ず取り出して捨てる。復元に使うのは `retry=1` で来たときだけ。タイトル・ステージ選択・クリア結果の画面でも捨てる。復元時は、ブロックの種類・方向・条件・回数を許可した値だけに作り直す。
 
 ### 画像素材の差し替え（`src/main/webapp/assets/`）
 素材の設定は **`js/assets.js` の `MANIFEST`** にまとまっている。**同じファイル名で画像を上書き**するか、`MANIFEST` のファイル名を書き換えれば差し替わる。画像が無い素材は、絵文字などの仮の表示になる（画面は壊れない）。
@@ -46,16 +49,15 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 | 背景（タイトル／ステージ選択） | `bg-title.png` / `bg-stages.png` | 未用意（グラデーション背景） |
 | 背景（ゲーム／結果） | `game-bg.png` | |
 | タイトルロゴ | `title-logo.png` | 未用意（文字のタイトルを表示） |
-| マス: 道・スタート・ゴール・壁・落とし穴 | `grass.png` `start.png` `goal.png` `wall.png` `pit.png` | 上から見た正方形の絵を推奨。斜めの絵は `crop` で調整 |
-| マス: 接敵ゾーン | `zone.png` | 未用意（道の上に赤色を重ねる） |
-| マス: スイッチ（off／on） | `switch-off.png` / `switch-on.png` | 未用意（仮表示）。記号(A〜E)はバッジで重ねる |
-| マス: ドア（閉／開） | `door-closed.png` / `door-open.png` | 未用意（仮表示） |
-| アイテム（物資／武器） | `item-supply.png` / `item-weapon.png` | 背景が透明な画像。マスの上に重ねる |
-| アリロボット | `ant.png` | 向きごとの画像は `facing` に指定（なければ左右反転で代用） |
+| マス: 道・ゴール・壁・落とし穴 | `grass.webp` `goal.webp` `wall.webp` `pit.webp` | 上から見た正方形の絵（`crop` は不要）。スタート地点は専用の絵がなく、道と同じ絵を使う |
+| マス: 接敵ゾーン | `zone.webp` | 未用意（道の上に赤色を重ねる） |
+| マス: スイッチ（off／on） | `switch-off.webp` / `switch-on.webp` | 作動前／作動後 |
+| マス: ドア（閉／開） | `door-closed.webp` / `door-open.webp` | 閉じている／開いている |
+| アイテム（物資／武器） | `item-supply.webp`（木箱） / `item-weapon.webp`（砲台） | 背景が透明な画像。マスの上に重ねる |
+| アリロボット | `ant.png`（通常） / `ant-armed.webp`（**武器を持っているとき**） | 武器を持つと、後者の画像に切り替わる。向きごとの画像は `facing` に指定（なければ左右反転で代用） |
 | 敵（動かない／巡回） | `spider.png` / `bee.png` | 背景が透明な画像 |
 | リザルト（クリア／失敗） | `result-clear.png` / `result-fail.png` | |
 
-- `assets/place.png` は、今の画面では使っていない。
 - 元の見た目の見本は `view_sample/`（そのまま残してある）。
 
 ## ステージファイル（マップの編集方法）
@@ -91,12 +93,13 @@ S...P...G
 `{"id":1,"name":"…","rows":["…5行…"],"start":{"x":0,"y":2},"facing":"RIGHT","enemies":[{"id":"z1","x":4,"y":0}]}`（`enemies` は敵の初期位置）
 
 ### `POST api/run`（Content-Type: application/json 必須）
+- `testRun`（省略可、真偽値）: `true` で**テスト実行**。動きを記録するだけで、ゴールの判定をしない（ゴールに着いてもクリアにならず、最後まで実行する）。最後まで動かせたときの `status` は `PLAYING`（成功・失敗を決めない）。落下・敗北・上限超過のときは、通常どおり `FAILED` と理由を返す。
 ```json
 { "stageId": 2,
   "program": [ {"id":"b1","type":"MOVE","dir":"RIGHT"},
                {"id":"b2","type":"JUMP","dir":"RIGHT"} ] }
 ```
-- コマンド: `TURN`（`dir`: `UP` / `DOWN` / `LEFT` / `RIGHT` を向く）、`MOVE`（向いている方向へ1マス。`dir` なし）、`JUMP`（向いている方向へジャンプ。`dir` なし）、`WAIT`（その場で1ステップ待つ）
+- コマンド: `TURN`（`dir`: `UP` / `DOWN` / `LEFT` / `RIGHT` を向く）、`MOVE`（向いている方向へ1マス。`dir` なし）、`JUMP`（向いている方向へジャンプ。`dir` なし）、`WAIT`（その場で1ステップ待つ）、`DROP`（持っているアイテムを今いるマスに捨てる。`dir` なし）
 - 関数: `MOVE_FUNCTION`（`dir`: 向く方向、`count`: 移動回数 1〜100）
   ```json
   { "id":"f", "type":"MOVE_FUNCTION", "dir":"UP", "count":3 }
@@ -117,17 +120,17 @@ S...P...G
 { "status": "CLEARED", "failReason": null, "stepCount": 7,
   "trace": [ {"step":1,"blockId":"b1","result":"MOVED","x":1,"y":2,"facing":"RIGHT",
               "events":[{"type":"PICKUP","item":"SUPPLY","x":1,"y":2}],
-              "inventory":{"supply":true,"weapon":false},
+              "heldItem":"SUPPLY",
               "enemies":[{"id":"z1","x":4,"y":1}],
               "conditions":[{"blockId":"c","value":true}]} ] }
 ```
-- `status`: `CLEARED` / `FAILED`
+- `status`: `CLEARED` / `FAILED`（テスト実行で最後まで動かせたときは `PLAYING`）
 - `failReason`: `FELL_INTO_PIT` / `DEFEATED_BY_ENEMY` / `NOT_REACHED_GOAL` / `STEP_LIMIT_EXCEEDED` / `LOOP_LIMIT_EXCEEDED` / null
-- `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `SWITCH_ON` / `DOOR_OPEN` / `ENEMY_DEFEATED`。x,y は起きたマス（開いたドアはドアの座標）
-- `inventory`: 行動後の持ち物
+- `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `ITEM_DROPPED`(item=捨てたアイテム) / `SWITCH_ON` / `DOOR_OPEN` / `ENEMY_DEFEATED`。x,y は起きたマス（開いたドアはドアの座標）
+- `heldItem`: 行動後に持っているアイテム（`SUPPLY` / `WEAPON` / 何も持っていなければ null）
 - `enemies`: 行動後の、生きている全ての敵の位置（敵の移動は反映済み。ID は動かない敵が `x0`…、巡回する敵が `z1`〜`z5`）
 - `conditions`: この行動の直前に評価した制御ブロックの条件と結果（画面のハイライト用）
-- `result`: `MOVED` `JUMPED` `TURNED` `WAITED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `FELL_INTO_PIT` `DEFEATED_BY_ENEMY` `REACHED_GOAL`
+- `result`: `MOVED` `JUMPED` `TURNED` `WAITED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `DROPPED` `DROP_FAILED_NO_ITEM` `DROP_FAILED_OCCUPIED` `FELL_INTO_PIT` `DEFEATED_BY_ENEMY` `REACHED_GOAL`
 - エラー: `{"error":"コード"}`（400 / 404 / 413 / 415）
 
 ## ソース構成
