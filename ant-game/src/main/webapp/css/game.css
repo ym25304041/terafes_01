@@ -171,3 +171,148 @@ button{font-family:inherit}
 
 @media(max-width:980px){body{overflow:auto}.screen,.shell{height:auto;min-height:100vh}.game-layout{grid-template-columns:1fr}.stage-layout{grid-template-columns:1fr}}
 @media(max-width:1200px){.mission-card{grid-template-columns:92px 1fr}.conditions{grid-column:1/-1}}
+
+/* ===== 1. トップページ専用の背景画像（.title-layout を含むページにのみ適用） ===== */
+main.screen#screen:has(.title-layout) {
+  background-image: url('../assets/toppage.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* ===== 2. 右側のアリの画像を非表示にする ===== */
+main.screen#screen:has(.title-layout) .title-visual {
+  display: none !important;
+}
+
+/* ===== 3. 白いカードの背景を消し、背景画像を完全に見せる ===== */
+main.screen#screen:has(.title-layout) .title-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  height: auto !important;
+}
+
+/* ===== 4. 文字タイトルを画像（titlelogo.png）に置き換え、上に移動 ===== */
+main.screen#screen:has(.title-layout) .title-left h1 {
+  /* 元の文字を非表示にする */
+  font-size: 0 !important;
+  color: transparent !important;
+  text-shadow: none !important;
+  
+  /* 背景画像で文字を置き換える */
+  background-image: url('../assets/titlelogo.png') !important; 
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  
+  /* 画像表示領域のサイズ */
+  width: min(100vw, 1100px) !important;
+  height: clamp(250px, 45vh, 550px) !important;
+  
+  /* 位置微調整：上に移動し、ボタンとの距離を確保 */
+  margin-top: -150px !important;
+  margin-bottom: 30px !important;
+}
+
+/* ===== 5. ボタン調整：下に移動、大きくする ===== */
+main.screen#screen:has(.title-layout) .title-start {
+  margin-top: 50px !important;
+  min-width: 340px !important;
+  min-height: 90px !important;
+  font-size: clamp(28px, 2.5vw, 40px) !important;
+  border-radius: 50px !important;
+}
+/* ===== 2ページ目（ステージ選択）専用の背景とスタイル ===== */
+
+/* 1. 2ページ目の背景画像を設定（:has で .stage-layout を含むページに限定） */
+main.screen#screen:has(.stage-layout) {
+  /* 下のパスを2枚目の背景画像の実際のパスに置き換えてください */
+  background-image: url('../assets/number2.png') !important; 
+  background-size: cover !important;
+  background-position: left center !important; /* 重要：画像を左寄せにし、おじいさんが見えるようにする */
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+main.screen#screen:has(.stage-layout) .rules-panel {
+  background: transparent !important;   /* 背景を完全に透明に */
+  backdrop-filter: none !important;     /* ぼかし効果を解除 */
+  border-radius: 0 !important;          /* 角丸を解除 */
+  box-shadow: none !important;          /* 影を確実に消す */
+  border: none !important;              /* 枠線を確実に消す */
+}
+
+/* 3. 右側のステージメインパネルも半透明にし、ロボットと森を見せる */
+main.screen#screen:has(.stage-layout) .stage-main {
+  background: rgba(255, 255, 255, 0.7) !important; 
+  backdrop-filter: blur(4px) !important;
+  border-radius: 24px !important;
+}
+
+/* 4. ステージカードは元の白いハイライトスタイルを維持（透明にすると文字が読めなくなるため） */
+main.screen#screen:has(.stage-layout) .stage-card {
+  background: linear-gradient(180deg, #fffefb, #edf7ff) !important; /* カード本来の不透明な背景に戻す */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; /* カードを浮き上がらせ、立体感を出す */
+}
+
+/* ===== rule.html（ルール説明ページ）専用の背景 ===== */
+/* rule-screen というクラス名を持つページにのみ適用 */
+main.screen#screen.rule-screen {
+  background-image: url('../assets/rule.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* ルールページのパネルを半透明にする */
+main.screen#screen.rule-screen .rules-panel {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(4px) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+}
+main.screen#screen.rule-screen .rules-panel {
+  /* --- 画面の中央に配置 --- */
+  margin: 30px auto !important;    /* 上下に余白、左右は自動（水平中央揃え） */
+  
+  /* --- 縦長サイズ：狭めにして、左右の背景を見えやすくする --- */
+  width: min(500px, 90vw) !important;   /* 幅は最大500px、広すぎて人物を隠さないように */
+  max-height: 80vh !important;          /* 高さは最大画面の80% */
+  overflow-y: auto !important;          /* 文字が多い場合は内部スクロール */
+  
+  /* --- 半透明のすりガラス効果 --- */
+  background: rgba(255, 255, 255, 0.65) !important; /* 65%の白、半透明 */
+  backdrop-filter: blur(8px) !important;            /* すりガラス */
+  border-radius: 24px !important;                   /* 角丸 */
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important; /* 浮き上がる影 */
+  border: 2px solid rgba(255,255,255,0.8) !important; /* 薄い白い枠線 */
+  padding: 30px !important;                         /* 内側の余白 */
+}
+
+/* 4. パネル内の文字スタイル微調整 */
+main.screen#screen.rule-screen .rules-panel h2 {
+  font-size: clamp(24px, 2vw, 32px) !important;
+  margin-bottom: 20px !important;
+  text-align: center !important;
+}
+
+main.screen#screen.rule-screen .rules-panel ol {
+  font-size: clamp(14px, 1vw, 16px) !important;
+  line-height: 1.8 !important;
+  padding-left: 1.2em !important;
+}
+/* ===== 左上のロゴ ===== */
+.top-logo {
+  height: 90px !important;         /* サイズ、自由に調整可能 */
+  width: auto !important;          /* 幅は比率に合わせて自動、変形しない */
+  margin-right: 20px !important;   /* 右側のボタンとの間隔 */
+  object-fit: contain !important;
+}

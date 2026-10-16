@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>アント・コマンド（仮）</title>
+  <title>Aligorithm</title>
   <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
         <section class="title-card">
           <div class="title-left" id="titleLeft">
             <!-- ロゴ画像(assets/title-logo.png)があれば、js/title.js が差し込む。なければこの文字を表示 -->
-            <h1 id="titleText">アント・コマンド<br>（仮）</h1>
+            <h1 id="titleText">Aligorithm</h1>
             <a class="btn title-start" href="stages.html">▶ ゲーム開始</a>
           </div>
           <div class="title-visual" id="titleVisual"></div>
@@ -25,5 +25,23 @@
   <script src="js/common.js"></script>
   <script src="js/assets.js"></script>
   <script src="js/title.js"></script>
+  <!-- 在原有代码之后追加的背景设置，不会影响原有程序逻辑 -->
+<style>
+  body {
+    /* 这里替换成您图片的实际路径，例如：images/background.png */
+    background-image: url('toppage.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+  }
+  
+  /* 如果游戏内容挡住了背景，可以取消下面这段注释，让主容器透明 */
+  /*
+  .screen, .shell, .title-card {
+    background: transparent !important;
+  }
+  */
+</style>
 </body>
 </html>
