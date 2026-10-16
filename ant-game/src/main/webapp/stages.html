@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>アント・コマンド（仮） | ステージ選択</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <!-- ステージ選択画面: ステージのカードは js/stages.js が、サーバーのステージ一覧から作る（9ステージ分） -->
+  <main class="screen" id="screen">
+    <div class="shell">
+      <header class="topbar">
+        <a class="logo-badge" href="index.html"><span>🍃</span> アント・コマンド（仮）</a>
+        <div class="nav-actions">
+          <a class="navbtn secondary" href="index.html">⌂ ホーム</a>
+          <span class="navbtn">▦ ステージ選択</span>
+        </div>
+        <div class="spacer"></div>
+      </header>
+      <div class="stage-layout">
+        <aside class="panel rules-panel">
+          <h2>ゲームルール</h2>
+          <ol>
+            <li>ブロックを組み立てて、アリロボットを動かそう。</li>
+            <li>「前へ移動」は、アリが向いている方向へ進むよ。向きを変えるには「向く」を使おう。</li>
+            <li>物資を拾ってスイッチに乗るとドアが開く。武器を拾えば敵を倒せる。</li>
+            <li>落とし穴は「ジャンプ」で飛び越えよう。敵は1ステップごとに動くよ。</li>
+            <li>実行して動きを確認し、うまくいかなければやり直そう。</li>
+          </ol>
+        </aside>
+        <section class="panel stage-main">
+          <h1>ステージを選んでください</h1>
+          <div class="stage-grid" id="stageGrid"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="js/common.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/stages.js"></script>
+</body>
+</html>

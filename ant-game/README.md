@@ -26,6 +26,38 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - **巡回する敵（接敵ゾーン`1〜5`）:** 縦か横の1列を往復する。1ステップに1マス進み、端で即折り返す。左端（縦なら上端）から反対側へ動き始める。アリが先に動き、そのあと敵が動く。敵がアリのいるマスに入ってきても戦闘になる（その場で待っていても危険）。討伐された敵はいなくなる。
 - 取得・作動・戦闘はステップ数に数えない。順序は「落下判定 → 取得 → 敵との戦闘 → スイッチ → ゴール判定」。
 
+## 画面と素材
+
+| 画面 | ファイル | 内容 |
+|---|---|---|
+| タイトル | `index.html` | 「ゲーム開始」でステージ選択へ |
+| ステージ選択 | `stages.html` | 9ステージのカード（ステージファイルの `name:` / `description:` を表示） |
+| ゲームプレイ | `game.html?stage=N` | マップ・ブロックのパレット・プログラム。実行すると結果を再生 |
+| 結果（クリア） | `result-clear.html?stage=N&steps=回数` | 実行回数を表示。「次のステージへ」「ステージ選択へ戻る」 |
+| 結果（失敗） | `result-fail.html?stage=N&reason=理由` | 失敗理由を表示。「もう一度挑戦する」「ステージ選択へ戻る」 |
+
+画面遷移: タイトル → ステージ選択 → ゲームプレイ → 結果。URLのパラメータは、数値・許可した値だけを受け付ける。
+
+### 画像素材の差し替え（`src/main/webapp/assets/`）
+素材の設定は **`js/assets.js` の `MANIFEST`** にまとまっている。**同じファイル名で画像を上書き**するか、`MANIFEST` のファイル名を書き換えれば差し替わる。画像が無い素材は、絵文字などの仮の表示になる（画面は壊れない）。
+
+| 素材 | 既定のファイル名 | 備考 |
+|---|---|---|
+| 背景（タイトル／ステージ選択） | `bg-title.png` / `bg-stages.png` | 未用意（グラデーション背景） |
+| 背景（ゲーム／結果） | `game-bg.png` | |
+| タイトルロゴ | `title-logo.png` | 未用意（文字のタイトルを表示） |
+| マス: 道・スタート・ゴール・壁・落とし穴 | `grass.png` `start.png` `goal.png` `wall.png` `pit.png` | 上から見た正方形の絵を推奨。斜めの絵は `crop` で調整 |
+| マス: 接敵ゾーン | `zone.png` | 未用意（道の上に赤色を重ねる） |
+| マス: スイッチ（off／on） | `switch-off.png` / `switch-on.png` | 未用意（仮表示）。記号(A〜E)はバッジで重ねる |
+| マス: ドア（閉／開） | `door-closed.png` / `door-open.png` | 未用意（仮表示） |
+| アイテム（物資／武器） | `item-supply.png` / `item-weapon.png` | 背景が透明な画像。マスの上に重ねる |
+| アリロボット | `ant.png` | 向きごとの画像は `facing` に指定（なければ左右反転で代用） |
+| 敵（動かない／巡回） | `spider.png` / `bee.png` | 背景が透明な画像 |
+| リザルト（クリア／失敗） | `result-clear.png` / `result-fail.png` | |
+
+- `assets/place.png` は、今の画面では使っていない。
+- 元の見た目の見本は `view_sample/`（そのまま残してある）。
+
 ## ステージファイル（マップの編集方法）
 マップは `src/main/webapp/WEB-INF/stages/stage<番号>.txt` に置きます。ファイルを追加・編集するだけで、プログラムの修正は不要です。
 
@@ -39,7 +71,7 @@ S...P...G
 .##.#.##.
 ....#....
 ```
-- `name:`（ステージ名）、`facing:`（アリの最初の向き。right / left / up / down。省略で right）、`map:`（以降の5行がマップ）の順に書く。
+- `name:`（ステージ名）、`description:`（ステージ選択画面に出す一言説明。省略可）、`facing:`（アリの最初の向き。right / left / up / down。省略で right）、`map:`（以降の5行がマップ）の順に書く。
 - 記号: `.`道 `#`壁 `P`落とし穴 `G`ゴール `S`スタート（1つだけ） `M`物資 `W`武器 `X`動かない敵 `1〜5`接敵ゾーン `a〜e`スイッチ `A〜E`ドア（`E`はドア用なので敵は`X`）。5行×9文字。
 - スイッチとドアは同じ文字で対応（`a`→`A`）。複数の組、同じ記号の複数配置もOK。片方だけ置くとエラー。アイテムは道の上にのみ置ける。
 - 文字コードは UTF-8。ファイル名の数字がステージ番号になる。
@@ -49,9 +81,12 @@ S...P...G
   ```xml
   <context-param><param-name>stageDir</param-name><param-value>D:\ant\stages</param-value></context-param>
   ```
-- 動作確認ページ（`index.html`）のステージ選択は固定の6つです。制御ブロック（もし・の間・回くり返す）は、入れたい枠の「ここに追加」をクリックしてからブロックを追加します。ステージを増やしたら `<option>` も追加してください。
+- ステージを増やすときは、`stage<番号>.txt` を置くだけです（ステージ選択画面は、1〜9のうちファイルのあるものを自動で表示します）。
 
 ## API
+### `GET api/stages`
+`{"stages":[{"id":1,"name":"…","description":"…"}, …]}`（ステージ選択画面用。番号の小さい順）
+
 ### `GET api/stage?id=1`
 `{"id":1,"name":"…","rows":["…5行…"],"start":{"x":0,"y":2},"facing":"RIGHT","enemies":[{"id":"z1","x":4,"y":0}]}`（`enemies` は敵の初期位置）
 
@@ -101,8 +136,8 @@ src/main/java/com/terafes/ant/
   game/     Direction, Position, CellType, GameMap, GameEngine, Stage, StageRepository(ファイル読込) …ゲームのルール
   program/  Block, BlockType, ProgramRunner, RunResult, TraceStep …プログラムの実行
   json/     JsonParser, JsonWriter …自作の最小JSON処理
-  api/      RunServlet, StageServlet, RunRequest, SecurityHeadersFilter …HTTP入出力と入力検証
-src/main/webapp/   動作確認用の簡易画面（index.html, js, css）
+  api/      RunServlet, StageServlet, StagesServlet, RunRequest, SecurityHeadersFilter …HTTP入出力と入力検証
+src/main/webapp/   画面（index/stages/game/result-clear/result-fail.html, js/, css/game.css, assets/）
 src/test/java/     自作の簡易テスト（TestMain から実行）
 ```
 
