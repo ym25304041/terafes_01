@@ -68,6 +68,8 @@ public final class GameEngine {
     private Direction facing;
     /** ゲームの状態 */
     private GameStatus status;
+    /** ゴールの判定をするか。false のとき（テスト実行）は、ゴールに着いてもクリアにならず、そのまま動き続ける */
+    private final boolean judgeGoal;
 
     /** まだ床に残っているアイテム（座標 → 種類）。取得すると取り除かれる */
     private final Map<Position, ItemType> remainingItems;
@@ -145,6 +147,17 @@ public final class GameEngine {
      * @param startFacing アリの最初の向き
      */
     public GameEngine(GameMap map, Direction startFacing) {
+        this(map, startFacing, true);
+    }
+
+    /**
+     * @param map         ゲームで使うマップ。アリはマップのスタート地点から始まります
+     * @param startFacing アリの最初の向き
+     * @param judgeGoal   ゴールの判定をするか。false にすると、ゴールに着いてもクリアにならず、
+     *                    動きを確かめるだけの「テスト実行」ができます（落下・敗北は、これまでどおり起きます）
+     */
+    public GameEngine(GameMap map, Direction startFacing, boolean judgeGoal) {
+        this.judgeGoal = judgeGoal;
         this.map = map;
         this.position = map.getStart();
         this.facing = startFacing;
@@ -517,7 +530,7 @@ public final class GameEngine {
             return ActionResult.DEFEATED_BY_ENEMY;
         }
         activateSwitch();
-        if (isAtGoal()) {
+        if (judgeGoal && isAtGoal()) {
             status = GameStatus.CLEARED;
             return ActionResult.REACHED_GOAL;
         }

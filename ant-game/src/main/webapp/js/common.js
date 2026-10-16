@@ -50,3 +50,61 @@ const AntUi = (() => {
 
   return { el, intParam, listParam, sleep };
 })();
+
+/*
+ * 失敗したときの「やり直し用のプログラム」を、一時的に預かっておく仕組みです。
+ *
+ * 【なぜ必要か】
+ *   ゲーム画面で失敗すると、結果画面(失敗)という「別のページ」へ移動します。
+ *   ページを移動すると、画面の中のプログラムは消えてしまうため、失敗した時点のプログラムを、
+ *   結果画面で「もう一度挑戦する」が押されるまで預かっておき、ゲーム画面で復元します。
+ *
+ * 【預かる場所と、捨てるタイミング】
+ *   ・sessionStorage（ブラウザのタブの中だけに残る保存場所）を使います。タブを閉じると消えます。
+ *     localStorage のような、ずっと残る保存は使いません。サーバーにも送りません。
+ *   ・ゲーム画面が開いたときに、預かっているプログラムを取り出して、必ず捨てます（take）。
+ *     「もう一度挑戦する」から来たときだけ、取り出したものを復元に使います。
+ *   ・タイトル・ステージ選択・クリア結果の画面が開いたときも、捨てます（discard）。
+ *   ・ブラウザの設定で保存が使えない場合は、何もしません（復元できないだけで、ゲームは動きます）。
+ */
+const AntRetry = (() => {
+
+  const KEY = 'ant.retryProgram';
+
+  /** 失敗したステージのプログラムを預かる。 */
+  function save(stageId, program) {
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify({ stageId: stageId, program: program }));
+    } catch (e) {
+      // 保存できない環境では、何もしない
+    }
+  }
+
+  /**
+   * 預かっているプログラムを取り出して、捨てる(次に取り出すと、何もない)。
+   * @returns {{stageId:number, program:Array}|null} なければ null
+   */
+  function take() {
+    try {
+      const raw = sessionStorage.getItem(KEY);
+      sessionStorage.removeItem(KEY);
+      if (raw === null) { return null; }
+      const data = JSON.parse(raw);
+      if (data && Number.isInteger(data.stageId) && Array.isArray(data.program)) { return data; }
+    } catch (e) {
+      // 読み取れないときは、何もないものとして扱う
+    }
+    return null;
+  }
+
+  /** 預かっているプログラムを捨てる。 */
+  function discard() {
+    try {
+      sessionStorage.removeItem(KEY);
+    } catch (e) {
+      // 何もしない
+    }
+  }
+
+  return { save, take, discard };
+})();

@@ -32,10 +32,14 @@ import java.util.regex.Pattern;
  *
  * 外部から届いたデータは信用せず、すべての項目を検査します（入力検証）。
  *
+ * "testRun": true を付けると「テスト実行」になります（省略すると false）。
+ * テスト実行は、プログラムの動きを記録するだけで、ゴールの判定（クリア・失敗の判定）をしません。
+ *
  * @param stageId 挑戦するステージ番号
  * @param program 実行するブロックのリスト
+ * @param testRun テスト実行か（true ならゴールの判定をしない）
  */
-public record RunRequest(int stageId, List<Block> program) {
+public record RunRequest(int stageId, List<Block> program, boolean testRun) {
 
     /**
      * 受け付けるブロック数の上限（入れ子の中のブロックも含めた合計）。
@@ -87,7 +91,17 @@ public record RunRequest(int stageId, List<Block> program) {
         }
         int[] blockCounter = {0}; // 入れ子の中も含めたブロックの合計数を数える
         List<Block> blocks = parseBlockList(programValue, 0, blockCounter);
-        return new RunRequest(stageIdLong.intValue(), blocks);
+
+        // --- testRun の検査（省略可。真偽値だけを受け付ける） ---
+        Object testRunValue = rootMap.get("testRun");
+        boolean testRun = false;
+        if (testRunValue != null) {
+            if (!(testRunValue instanceof Boolean flag)) {
+                throw new BadRequestException("INVALID_REQUEST");
+            }
+            testRun = flag;
+        }
+        return new RunRequest(stageIdLong.intValue(), blocks, testRun);
     }
 
     /**

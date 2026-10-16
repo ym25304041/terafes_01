@@ -25,6 +25,7 @@ public final class TestMain {
         ControlBlockTest.run();
         FacingTest.run();
         DropTest.run();
+        TestRunTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

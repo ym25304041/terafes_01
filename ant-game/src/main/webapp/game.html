@@ -52,8 +52,9 @@
     }
     .end-zone.drop-over { border-color: #ffb300; background: #fff8e1; }
 
-    /* 操作ボタンは「実行」だけにしたので、1列にする */
-    .controls { grid-template-columns: 1fr; }
+    /* 操作ボタン: 左に「テスト実行」、右に「実行」 */
+    .controls { grid-template-columns: 1fr 1.2fr; }
+    .controls .test { background: linear-gradient(#3fa8ff, #1378db); color: #fff; }
 
     /* 「アイテムを捨てる」ブロックの色 */
     .b-drop { background: #c0562d; }
@@ -125,6 +126,7 @@
           <div class="message-bar" id="message" role="status">ブロックをドラッグして、プログラムに入れよう。(クリックでも追加できるよ)</div>
 
           <div class="controls">
+            <button class="btn test" id="testButton" type="button" title="動きを確かめるだけ(ゴールの判定をしない)。終わると3秒後に最初の状態に戻ります">▷ テスト実行</button>
             <button class="btn run" id="runButton" type="button">▶ 実行</button>
           </div>
         </section>

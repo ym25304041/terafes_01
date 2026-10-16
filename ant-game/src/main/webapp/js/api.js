@@ -65,12 +65,15 @@ const AntApi = (() => {
     return request('api/stage?id=' + encodeURIComponent(id));
   }
 
-  /** プログラムを実行します。 */
-  function run(stageId, program) {
+  /**
+   * プログラムを実行します。
+   * @param testRun true なら「テスト実行」(動きを記録するだけで、ゴールの判定をしない)
+   */
+  function run(stageId, program, testRun) {
     return request('api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stageId: stageId, program: program })
+      body: JSON.stringify({ stageId: stageId, program: program, testRun: testRun === true })
     });
   }
 

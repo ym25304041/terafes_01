@@ -52,7 +52,22 @@ public final class ProgramRunner {
      * @return 実行結果（トレース付き）
      */
     public static RunResult run(Stage stage, List<Block> program) {
-        GameEngine engine = new GameEngine(stage.createMap(), stage.startFacing());
+        return run(stage, program, true);
+    }
+
+    /**
+     * プログラムを実行します。
+     *
+     * @param stage     挑戦するステージ
+     * @param program   実行するブロックのリスト
+     * @param judgeGoal ゴールの判定をするか。false のときは「テスト実行」で、動きを記録するだけです。
+     *                  ゴールに着いてもクリアにならず、プログラムを最後まで実行します。
+     *                  最後まで動かせたときの結果は、成功・失敗を決めない状態（PLAYING）になります。
+     *                  （落とし穴に落ちる・敵に負ける・上限を超える場合は、これまでどおり失敗として返します）
+     * @return 実行結果（トレース付き）
+     */
+    public static RunResult run(Stage stage, List<Block> program, boolean judgeGoal) {
+        GameEngine engine = new GameEngine(stage.createMap(), stage.startFacing(), judgeGoal);
         Execution execution = new Execution(engine);
         execution.runBlocks(program);
 
@@ -63,6 +78,10 @@ public final class ProgramRunner {
         if (execution.stopReason != null) {
             engine.markFailed();
             return new RunResult(GameStatus.FAILED, execution.stopReason, stepCount, trace);
+        }
+        if (!judgeGoal && engine.getStatus() == GameStatus.PLAYING) {
+            // テスト実行: ゴールの判定をしないので、最後まで動かせたら、成功・失敗を決めずに終わる
+            return new RunResult(GameStatus.PLAYING, null, stepCount, trace);
         }
         // 最終的な状態を確定する
         if (engine.getStatus() == GameStatus.CLEARED) {

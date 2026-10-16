@@ -35,9 +35,11 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 | ステージ選択 | `stages.html` | 9ステージのカード（ステージファイルの `name:` / `description:` を表示） |
 | ゲームプレイ | `game.html?stage=N` | マップ・ブロックのパレット・プログラム。実行すると結果を再生 |
 | 結果（クリア） | `result-clear.html?stage=N&steps=回数` | 実行回数を表示。「次のステージへ」「ステージ選択へ戻る」 |
-| 結果（失敗） | `result-fail.html?stage=N&reason=理由` | 失敗理由を表示。「もう一度挑戦する」「ステージ選択へ戻る」 |
+| 結果（失敗） | `result-fail.html?stage=N&reason=理由` | 失敗理由を表示。「もう一度挑戦する」で、失敗した時のプログラムを復元して再開（`game.html?stage=N&retry=1`）。「ステージ選択へ戻る」 |
 
 画面遷移: タイトル → ステージ選択 → ゲームプレイ → 結果。URLのパラメータは、数値・許可した値だけを受け付ける。
+
+**失敗後のやり直し:** 失敗した時点のプログラムを、`sessionStorage`（タブの中だけに残る一時保存。タブを閉じると消える。サーバーへは送らない）に預け（`AntRetry`、`js/common.js`）、「もう一度挑戦する」で復元する。預けたプログラムは、ゲーム画面を開いた時に必ず取り出して捨てる。復元に使うのは `retry=1` で来たときだけ。タイトル・ステージ選択・クリア結果の画面でも捨てる。復元時は、ブロックの種類・方向・条件・回数を許可した値だけに作り直す。
 
 ### 画像素材の差し替え（`src/main/webapp/assets/`）
 素材の設定は **`js/assets.js` の `MANIFEST`** にまとまっている。**同じファイル名で画像を上書き**するか、`MANIFEST` のファイル名を書き換えれば差し替わる。画像が無い素材は、絵文字などの仮の表示になる（画面は壊れない）。
@@ -92,6 +94,7 @@ S...P...G
 `{"id":1,"name":"…","rows":["…5行…"],"start":{"x":0,"y":2},"facing":"RIGHT","enemies":[{"id":"z1","x":4,"y":0}]}`（`enemies` は敵の初期位置）
 
 ### `POST api/run`（Content-Type: application/json 必須）
+- `testRun`（省略可、真偽値）: `true` で**テスト実行**。動きを記録するだけで、ゴールの判定をしない（ゴールに着いてもクリアにならず、最後まで実行する）。最後まで動かせたときの `status` は `PLAYING`（成功・失敗を決めない）。落下・敗北・上限超過のときは、通常どおり `FAILED` と理由を返す。
 ```json
 { "stageId": 2,
   "program": [ {"id":"b1","type":"MOVE","dir":"RIGHT"},
@@ -122,7 +125,7 @@ S...P...G
               "enemies":[{"id":"z1","x":4,"y":1}],
               "conditions":[{"blockId":"c","value":true}]} ] }
 ```
-- `status`: `CLEARED` / `FAILED`
+- `status`: `CLEARED` / `FAILED`（テスト実行で最後まで動かせたときは `PLAYING`）
 - `failReason`: `FELL_INTO_PIT` / `DEFEATED_BY_ENEMY` / `NOT_REACHED_GOAL` / `STEP_LIMIT_EXCEEDED` / `LOOP_LIMIT_EXCEEDED` / null
 - `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `ITEM_DROPPED`(item=捨てたアイテム) / `SWITCH_ON` / `DOOR_OPEN` / `ENEMY_DEFEATED`。x,y は起きたマス（開いたドアはドアの座標）
 - `heldItem`: 行動後に持っているアイテム（`SUPPLY` / `WEAPON` / 何も持っていなければ null）

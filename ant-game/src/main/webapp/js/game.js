@@ -31,6 +31,7 @@
   const COLS = 9;  // マップの横のマス数
   const ROWS = 5;  // マップの縦のマス数
   const STEP_MS = 420; // 再生1ステップの長さ(ミリ秒)
+  const TEST_RESET_MS = 3000; // テスト実行が終わってから、マップを最初の状態に戻すまでの時間(ミリ秒)
 
   const DIR_LABEL = { UP: '↑ 上', DOWN: '↓ 下', LEFT: '← 左', RIGHT: '→ 右' };
   const DIR_ARROW = { UP: '▲', DOWN: '▼', LEFT: '◀', RIGHT: '▶' };
@@ -69,6 +70,7 @@
   const heldSlot = $('heldSlot');
   const clearButton = $('clearButton');
   const runButton = $('runButton');
+  const testButton = $('testButton');
 
   // 状態
   let stage = null;          // 読み込んだステージ情報
@@ -568,26 +570,34 @@
     if (AntApi.RESULT_NOTE[t.result]) { showMessage(AntApi.RESULT_NOTE[t.result]); }
   }
 
-  /** 「実行」: プログラムをサーバーへ送り、返ってきた記録を再生して、結果の画面へ進む。 */
-  async function onRun() {
+  /**
+   * プログラムをサーバーへ送り、返ってきた記録を再生する。
+   *
+   *   「実行」      : 再生が終わったら、結果の画面(クリア／失敗)へ移動する。
+   *   「テスト実行」: 動きを記録して再生するだけ。ゴールの判定(クリア・失敗の判定)はしない。
+   *                  再生が終わったら、3秒待って、マップを最初の状態に戻す。
+   *
+   * @param isTest テスト実行か
+   */
+  async function runProgram(isTest) {
     if (playing || !stage) { return; }
     if (program.length === 0) {
       showMessage('ブロックを置いてから、実行してね。', 'ng');
       return;
     }
     playing = true;
-    runButton.disabled = true;
+    setRunButtons(false);
     const token = ++runToken;
     resetBoard();
     renderProgram();
-    showMessage('実行中…');
+    showMessage(isTest ? 'テスト実行中…' : '実行中…');
 
-    const res = await AntApi.run(stage.id, program);
+    const res = await AntApi.run(stage.id, program, isTest);
     if (token !== runToken) { return; } // 別の実行が始まった(古い再生は打ち切る)
     if (!res.ok) {
       showMessage(AntApi.errorText(res.error), 'ng');
       playing = false;
-      runButton.disabled = false;
+      setRunButtons(true);
       return;
     }
 
@@ -598,6 +608,21 @@
       if (token !== runToken) { return; }
     }
     highlight(null, []);
+
+    if (isTest) {
+      // テスト実行: 結果の画面へは進まない。落下・敗北・上限超過で止まったときは、その理由を伝える
+      const reason = data.status === 'FAILED' ? (AntApi.FAIL_MESSAGE[data.failReason] || '') + ' ' : '';
+      showMessage('テスト実行が終わったよ。' + reason + '(3秒後に最初の状態に戻るよ)');
+      await AntUi.sleep(TEST_RESET_MS);
+      if (token !== runToken) { return; }
+      resetBoard();
+      renderProgram();
+      showMessage('最初の状態に戻したよ。');
+      playing = false;
+      setRunButtons(true);
+      return;
+    }
+
     showMessage(data.status === 'CLEARED' ? 'ゴール！' : '…', data.status === 'CLEARED' ? 'ok' : 'ng');
     await AntUi.sleep(800);
     if (token !== runToken) { return; }
@@ -606,8 +631,16 @@
     if (data.status === 'CLEARED') {
       location.href = 'result-clear.html?stage=' + stage.id + '&steps=' + data.stepCount;
     } else {
+      // 失敗: 「もう一度挑戦する」で再開できるように、今のプログラムを預かってから移動する
+      AntRetry.save(stage.id, program);
       location.href = 'result-fail.html?stage=' + stage.id + '&reason=' + encodeURIComponent(data.failReason);
     }
+  }
+
+  /** 「実行」「テスト実行」ボタンを、押せる／押せないに切り替える。 */
+  function setRunButtons(enabled) {
+    runButton.disabled = !enabled;
+    testButton.disabled = !enabled;
   }
 
   /** 「クリア」: プログラムのブロックを、すべて消す(再生中は押せない)。 */
@@ -623,7 +656,39 @@
   // 起動
   // ======================================================================
 
+  /**
+   * 預かっていたプログラム(外部から読み込んだデータ)を、安全な形に作り直す。
+   * 知らない種類のブロックは捨て、方向・条件・回数は、許可した値だけを受け付ける。
+   * ブロックのIDは新しく振り直す。入れ子は6段まで、全部で200個までに収める。
+   */
+  function sanitizeProgram(list, depth, counter) {
+    const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+    if (!Array.isArray(list) || depth > 6) { return []; }
+    const out = [];
+    for (const b of list) {
+      if (counter.n >= 200) { break; }
+      if (!b || typeof b !== 'object' || typeof b.type !== 'string' || !has(BLOCK_CLASS, b.type)) { continue; }
+      counter.n++;
+      const nb = newBlock(b.type);
+      if (typeof b.dir === 'string' && has(DIR_LABEL, b.dir) && 'dir' in nb) { nb.dir = b.dir; }
+      if (Number.isInteger(b.count) && 'count' in nb) { nb.count = Math.min(100, Math.max(1, b.count)); }
+      if (typeof b.condition === 'string' && has(COND_LABEL, b.condition) && 'condition' in nb) {
+        nb.condition = b.condition;
+        nb.not = b.not === true;
+      }
+      ['then', 'else', 'body'].forEach((key) => {
+        if (Array.isArray(nb[key])) { nb[key] = sanitizeProgram(b[key], depth + 1, counter); }
+      });
+      out.push(nb);
+    }
+    return out;
+  }
+
   async function start() {
+    // 失敗のあとに預かっていたプログラムを取り出す(取り出すと同時に、預かりは必ず捨てられる)。
+    // 「もう一度挑戦する」から来たとき(?retry=1)だけ、あとで復元に使う
+    const saved = AntRetry.take();
+    const wantsRetry = AntUi.intParam('retry', 0, 1, 0) === 1;
     AntAssets.applyBackground($('screen'), 'game', 'linear-gradient(180deg,#74d3ff 0 31%,#bfe9a8 31% 100%)');
     buildGrid();
     buildPalette();
@@ -631,20 +696,29 @@
     fitMap();
     new ResizeObserver(fitMap).observe(mapWrap);
 
-    runButton.addEventListener('click', onRun);
+    runButton.addEventListener('click', () => runProgram(false));
+    testButton.addEventListener('click', () => runProgram(true));
     clearButton.addEventListener('click', onClear);
 
     const res = await AntApi.getStage(stageId);
     if (!res.ok) {
       $('missionTitle').textContent = 'ステージを読み込めませんでした';
       showMessage(AntApi.errorText(res.error), 'ng');
-      runButton.disabled = true;
+      setRunButtons(false);
       return;
     }
     stage = res.data;
     drawMission();
     resetBoard();
     fitMap();
+
+    // 失敗した同じステージの、もう一度挑戦するなら、前回のプログラムを復元する
+    if (wantsRetry && saved && saved.stageId === stage.id) {
+      program = sanitizeProgram(saved.program, 0, { n: 0 });
+      target = program;
+      renderProgram();
+      showMessage('前回のプログラムをそのまま残したよ。直して、もう一度挑戦しよう!');
+    }
   }
 
   start();
