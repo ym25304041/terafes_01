@@ -8,6 +8,8 @@ public enum EventType {
 
     /** アイテムを取得した */
     PICKUP,
+    /** 持っていたアイテムを、そのマスに捨てた */
+    ITEM_DROPPED,
     /** 物資を消費してスイッチを作動させた */
     SWITCH_ON,
     /** ドアが開いた */

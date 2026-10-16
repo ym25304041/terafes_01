@@ -5,6 +5,7 @@
  * ロゴ画像がまだないときは、HTML に書いてある文字のタイトルがそのまま表示されます。
  */
 (async () => {
+  AntRetry.discard(); // 新しくゲームを始めるので、やり直し用に預かっていたプログラムは捨てる
   const screen = document.getElementById('screen');
   AntAssets.applyBackground(screen, 'title', 'linear-gradient(180deg,#74d3ff 0 31%,#e8fbff 31% 100%)');
 

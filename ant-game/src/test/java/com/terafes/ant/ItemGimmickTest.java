@@ -62,7 +62,7 @@ final class ItemGimmickTest {
         T.check("武器も自動取得される", e.hasWeapon() && !e.hasSupply());
         T.eq("武器の取得イベント", List.of(pickup(ItemType.WEAPON, 1, 2)), e.getLastEvents());
 
-        T.group("アイテム: 持てるのは種類ごとに1つ");
+        T.group("アイテム: 持てるのは1つだけ（スロットは1つ）");
         e = engineOfRow2("SMM.....G");
         e.moveRight();
         e.moveRight();
@@ -73,7 +73,9 @@ final class ItemGimmickTest {
         e = engineOfRow2("SMW.....G");
         e.moveRight();
         e.moveRight();
-        T.check("物資と武器は別々に1つずつ持てる", e.hasSupply() && e.hasWeapon());
+        T.check("物資を持っていると、武器は取れない(スロットは1つ)", e.hasSupply() && !e.hasWeapon());
+        T.check("武器は床に残る", e.hasItemAt(new Position(2, 2)));
+        T.eq("取得イベントは起きない", 0, e.getLastEvents().size());
 
         e = engineOfRow2("SWW.....G");
         e.moveRight();
@@ -105,12 +107,14 @@ final class ItemGimmickTest {
         T.eq("開いたドアは通れる", ActionResult.MOVED, e.moveRight());
         T.eq("ドアのマスにいる", new Position(3, 2), e.getPosition());
 
-        T.group("スイッチ: 武器は消費されない");
+        T.group("スイッチ: 武器を持っていると物資を拾えず、スイッチも作動しない");
         e = engineOfRow2("SWMa.A..G");
         e.moveRight();
         e.moveRight();
         e.moveRight();
-        T.check("スイッチ作動後も武器は持ったまま", e.hasWeapon() && !e.hasSupply());
+        T.check("武器を持ったまま、物資は拾えない", e.hasWeapon() && !e.hasSupply());
+        T.check("物資は床に残っている", e.hasItemAt(new Position(2, 2)));
+        T.check("スイッチは作動せず、ドアは閉じたまま", e.isClosedDoor(new Position(5, 2)));
 
         T.group("スイッチ: 複数のドア・複数の組");
         e = engineOfRow2("SMaA.A..G");
@@ -206,10 +210,10 @@ final class ItemGimmickTest {
         RunResult r = ProgramRunner.run(stage3, repeat(8, Direction.RIGHT));
         T.eq("ステージ3: 右8回でクリア", GameStatus.CLEARED, r.status());
         T.eq("2歩目で物資を取得", List.of(pickup(ItemType.SUPPLY, 2, 2)), r.trace().get(1).events());
-        T.check("取得後の持ち物に物資がある", r.trace().get(1).hasSupply());
+        T.eq("取得後の持ち物は物資", ItemType.SUPPLY, r.trace().get(1).heldItem());
         T.eq("4歩目でスイッチ作動とドア開放",
                 List.of(switchOn(4, 2), doorOpen(6, 2)), r.trace().get(3).events());
-        T.check("スイッチ作動後は物資がない", !r.trace().get(3).hasSupply());
+        T.eq("スイッチ作動後は何も持っていない", null, r.trace().get(3).heldItem());
 
         // 物資を取らずに回り道するとドアが開かず失敗する
         List<Block> detour = new ArrayList<>();
@@ -227,11 +231,27 @@ final class ItemGimmickTest {
         T.eq("物資を取らないとドアが開かない", ActionResult.BLOCKED_DOOR, r.trace().get(11).result());
         T.eq("ステージ3: 失敗", GameStatus.FAILED, r.status());
 
+        // 8回進むだけでは、武器を持ったまま次の物資を拾えず、2つ目のドアが開かない
         r = ProgramRunner.run(stage4, repeat(8, Direction.RIGHT));
-        T.eq("ステージ4: 右8回でクリア", GameStatus.CLEARED, r.status());
+        T.eq("ステージ4: 武器を持ったままでは、2つ目のスイッチが作動せず失敗", GameStatus.FAILED, r.status());
+        T.eq("2つ目のドアにぶつかる", ActionResult.BLOCKED_DOOR, r.trace().get(6).result());
+
+        // 武器を拾ったあと、その場で捨ててから進めば、物資を拾える
+        List<Block> withDrop = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            withDrop.add(Block.moveBlock("p" + i));
+        }
+        withDrop.add(Block.dropBlock("drop"));
+        for (int i = 0; i < 4; i++) {
+            withDrop.add(Block.moveBlock("q" + i));
+        }
+        r = ProgramRunner.run(stage4, withDrop);
+        T.eq("ステージ4: 武器を捨ててからならクリア", GameStatus.CLEARED, r.status());
         T.eq("武器を取得(4歩目)", List.of(pickup(ItemType.WEAPON, 4, 2)), r.trace().get(3).events());
-        T.check("最後まで武器を持っている", r.trace().get(7).hasWeapon());
-        T.check("最後は物資を使い切っている", !r.trace().get(7).hasSupply());
+        T.eq("5ステップ目で武器を捨てる", ActionResult.DROPPED, r.trace().get(4).result());
+        T.eq("捨てた後は何も持っていない", null, r.trace().get(4).heldItem());
+        T.eq("次の物資を拾える", List.of(pickup(ItemType.SUPPLY, 5, 2)), r.trace().get(5).events());
+        T.eq("全部で9ステップ", 9, r.stepCount());
     }
 
     /** 同じ方向への移動ブロックを n 個並べる。 */

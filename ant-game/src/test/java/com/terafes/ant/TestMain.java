@@ -24,6 +24,8 @@ public final class TestMain {
         PatrolTest.run();
         ControlBlockTest.run();
         FacingTest.run();
+        DropTest.run();
+        TestRunTest.run();
         ProgramRunnerTest.run();
         ApiTest.run();
 

@@ -54,6 +54,11 @@ public record Block(String id, BlockType type, Direction dir, ConditionType cond
         return new Block(id, BlockType.MOVE_FUNCTION, dir, null, false, count, List.of(), List.of());
     }
 
+    /** 「アイテムを捨てる」ブロックを作る。 */
+    public static Block dropBlock(String id) {
+        return new Block(id, BlockType.DROP, null);
+    }
+
     /** 「待つ」ブロックを作る。 */
     public static Block waitBlock(String id) {
         return new Block(id, BlockType.WAIT, null);

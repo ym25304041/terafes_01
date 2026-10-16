@@ -14,6 +14,9 @@
   AntAssets.applyBackground(screen, 'result', 'linear-gradient(180deg,#74d3ff 0 31%,#e8fbff 31% 100%)');
 
   const stageId = AntUi.intParam('stage', 1, 9999, 1);
+  // クリアしたら、やり直し用に預かっていたプログラムは要らないので捨てる。
+  // 失敗のときは、「もう一度挑戦する」が押されるまで預かっておく(ゲーム画面が復元に使う)
+  if (isClear) { AntRetry.discard(); }
   const info = document.getElementById('resultInfo');
   const popup = document.getElementById('popup');
 
@@ -45,6 +48,7 @@
     const reason = AntUi.listParam('reason', AntApi.FAIL_CODES, 'NOT_REACHED_GOAL');
     info.textContent = AntApi.FAIL_MESSAGE[reason];
     // 「もう一度挑戦する」: 同じステージのゲーム画面へ
-    document.getElementById('retryButton').href = 'game.html?stage=' + stageId;
+    // retry=1 を付けて、預かっているプログラムを復元するようにゲーム画面へ伝える
+    document.getElementById('retryButton').href = 'game.html?stage=' + stageId + '&retry=1';
   }
 })();

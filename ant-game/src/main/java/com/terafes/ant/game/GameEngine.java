@@ -35,7 +35,11 @@ import java.util.function.Supplier;
  *
  * 【アイテムとスイッチのルール（すべて自動で行われます）】
  *   ・物資／武器のあるマスに着くと、自動で取得します。取得したアイテムはそのマスから消えます。
- *   ・持てるのは物資1つ・武器1つまで（別々のスロット）。同じ種類を持っているときは取得せず、床に残します。
+ *   ・持てるアイテムは1つだけです（物資か武器のどちらか。スロットは1つ）。
+ *     すでに何かを持っているときは、アイテムのマスに着いても取得せず、床に残します。
+ *   ・「アイテムを捨てる」と、持っているアイテムを、今いるマスに置きます（時間が1ステップ進みます）。
+ *     捨てたアイテムは、そのマスに再び着いたときに、自動で拾えます（その場に立ったままでは拾いません）。
+ *     今いるマスにすでにアイテムがあるときや、何も持っていないときは、捨てられません。
  *   ・スイッチのマスに着いたとき、物資を持っていれば物資を1つ消費してスイッチが作動し、
  *     同じ記号のドアがすべて開きます。作動したスイッチは、もう一度乗っても物資を消費しません。
  *   ・物資を持っていないときは何も起きません（スイッチは通れるマスです）。
@@ -64,6 +68,8 @@ public final class GameEngine {
     private Direction facing;
     /** ゲームの状態 */
     private GameStatus status;
+    /** ゴールの判定をするか。false のとき（テスト実行）は、ゴールに着いてもクリアにならず、そのまま動き続ける */
+    private final boolean judgeGoal;
 
     /** まだ床に残っているアイテム（座標 → 種類）。取得すると取り除かれる */
     private final Map<Position, ItemType> remainingItems;
@@ -73,10 +79,8 @@ public final class GameEngine {
     private final Set<Position> usedSwitches = new HashSet<>();
     /** 開いているドアの対応記号（小文字）。この記号のドアはすべて開いている */
     private final Set<Character> openedLinks = new HashSet<>();
-    /** 物資スロット: 物資を持っているか */
-    private boolean hasSupply = false;
-    /** 武器スロット: 武器を持っているか */
-    private boolean hasWeapon = false;
+    /** 持っているアイテム（スロットは1つだけ。何も持っていなければ null） */
+    private ItemType held = null;
     /** 直前の1回の行動で自動的に起きた出来事 */
     private List<GameEvent> lastEvents = new ArrayList<>();
 
@@ -143,6 +147,17 @@ public final class GameEngine {
      * @param startFacing アリの最初の向き
      */
     public GameEngine(GameMap map, Direction startFacing) {
+        this(map, startFacing, true);
+    }
+
+    /**
+     * @param map         ゲームで使うマップ。アリはマップのスタート地点から始まります
+     * @param startFacing アリの最初の向き
+     * @param judgeGoal   ゴールの判定をするか。false にすると、ゴールに着いてもクリアにならず、
+     *                    動きを確かめるだけの「テスト実行」ができます（落下・敗北は、これまでどおり起きます）
+     */
+    public GameEngine(GameMap map, Direction startFacing, boolean judgeGoal) {
+        this.judgeGoal = judgeGoal;
         this.map = map;
         this.position = map.getStart();
         this.facing = startFacing;
@@ -178,14 +193,19 @@ public final class GameEngine {
         return status;
     }
 
+    /** 持っているアイテム。何も持っていなければ null。 */
+    public ItemType getHeldItem() {
+        return held;
+    }
+
     /** 物資を持っているか。 */
     public boolean hasSupply() {
-        return hasSupply;
+        return held == ItemType.SUPPLY;
     }
 
     /** 武器を持っているか。 */
     public boolean hasWeapon() {
-        return hasWeapon;
+        return held == ItemType.WEAPON;
     }
 
     /**
@@ -385,9 +405,36 @@ public final class GameEngine {
         return act(() -> ActionResult.WAITED);
     }
 
+    /**
+     * 持っているアイテムを、今いるマスに捨てます。アリは動きませんが、時間は1ステップ進み、敵は動きます。
+     *
+     * 捨てたアイテムは、そのマスに再び着いたときに、自動で拾えます。
+     * 何も持っていないとき、または今いるマスにすでにアイテムがあるときは、捨てられません（何も起きません）。
+     *
+     * @return 行動の結果（DROPPED / DROP_FAILED_NO_ITEM / DROP_FAILED_OCCUPIED。敵に倒された場合は DEFEATED_BY_ENEMY）
+     */
+    public ActionResult dropItem() {
+        return act(this::doDrop);
+    }
+
     // ------------------------------------------------------------------
     // 内部処理
     // ------------------------------------------------------------------
+
+    /** アイテムを捨てる処理の本体。 */
+    private ActionResult doDrop() {
+        if (held == null) {
+            return ActionResult.DROP_FAILED_NO_ITEM;
+        }
+        if (remainingItems.containsKey(position)) {
+            return ActionResult.DROP_FAILED_OCCUPIED;
+        }
+        ItemType dropped = held;
+        remainingItems.put(position, dropped);
+        held = null;
+        lastEvents.add(new GameEvent(EventType.ITEM_DROPPED, dropped, position.x(), position.y()));
+        return ActionResult.DROPPED;
+    }
 
     /**
      * アリの行動1回ぶんの共通処理です。移動・ジャンプ・待つは、すべてここを通ります。
@@ -483,7 +530,7 @@ public final class GameEngine {
             return ActionResult.DEFEATED_BY_ENEMY;
         }
         activateSwitch();
-        if (isAtGoal()) {
+        if (judgeGoal && isAtGoal()) {
             status = GameStatus.CLEARED;
             return ActionResult.REACHED_GOAL;
         }
@@ -522,7 +569,7 @@ public final class GameEngine {
         if (here.isEmpty()) {
             return false;
         }
-        if (!hasWeapon) {
+        if (!hasWeapon()) {
             status = GameStatus.FAILED;
             return true;
         }
@@ -535,20 +582,14 @@ public final class GameEngine {
 
     /**
      * 現在のマスにアイテムがあれば取得します。
-     * 同じ種類のアイテムをすでに持っているときは取得せず、床に残します。
+     * すでに何かを持っている（スロットが埋まっている）ときは取得せず、床に残します。
      */
     private void pickUpItem() {
         ItemType item = remainingItems.get(position);
-        if (item == null) {
+        if (item == null || held != null) {
             return;
         }
-        if (item == ItemType.SUPPLY && !hasSupply) {
-            hasSupply = true;
-        } else if (item == ItemType.WEAPON && !hasWeapon) {
-            hasWeapon = true;
-        } else {
-            return; // スロットが埋まっているので取得しない
-        }
+        held = item;
         remainingItems.remove(position);
         lastEvents.add(new GameEvent(EventType.PICKUP, item, position.x(), position.y()));
     }
@@ -558,10 +599,10 @@ public final class GameEngine {
      * 同じ記号のドアがすべて開きます。
      */
     private void activateSwitch() {
-        if (!map.isSwitch(position) || usedSwitches.contains(position) || !hasSupply) {
+        if (!map.isSwitch(position) || usedSwitches.contains(position) || !hasSupply()) {
             return;
         }
-        hasSupply = false;
+        held = null; // 物資を消費する
         usedSwitches.add(position);
         lastEvents.add(new GameEvent(EventType.SWITCH_ON, null, position.x(), position.y()));
 
