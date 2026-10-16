@@ -13,12 +13,18 @@ import java.util.List;
  * @param name 画面に表示する名前
  * @param rows マップの文字列（5行×9文字）。記号の意味は {@link GameMap} を参照
  * @param startFacing アリの最初の向き
+ * @param description ステージの一言説明（ステージ選択画面などに表示する。なければ空文字）
  */
-public record Stage(int id, String name, List<String> rows, Direction startFacing) {
+public record Stage(int id, String name, List<String> rows, Direction startFacing, String description) {
 
-    /** アリの最初の向きを指定しない場合は、右向きになる。 */
+    /** アリの最初の向きと説明を指定しない場合は、右向き・説明なしになる。 */
     public Stage(int id, String name, List<String> rows) {
-        this(id, name, rows, Direction.RIGHT);
+        this(id, name, rows, Direction.RIGHT, "");
+    }
+
+    /** 説明を指定しない場合は、説明なしになる。 */
+    public Stage(int id, String name, List<String> rows, Direction startFacing) {
+        this(id, name, rows, startFacing, "");
     }
 
     /** このステージのマップオブジェクトを作ります。 */

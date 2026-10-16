@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>リザルト（失敗） | アント・コマンド</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <!-- リザルト画面(失敗): URL の ?stage=番号&reason=失敗理由 を js/result.js が読み取って表示する -->
+  <main class="screen" id="screen" data-result="fail">
+    <div class="shell">
+      <div class="result-layout">
+        <section class="result-stage">
+          <div id="popup"></div>
+          <div class="result-info" id="resultInfo"></div>
+          <div class="result-actions">
+            <a class="btn retry" id="retryButton" href="game.html">もう一度挑戦する</a>
+            <a class="btn back" href="stages.html">ステージ選択へ戻る</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="js/common.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/result.js"></script>
+</body>
+</html>

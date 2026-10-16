@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ゲームプレイ | アント・コマンド</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <!-- ゲームプレイ画面: URL の ?stage=番号 のステージを、js/game.js が読み込んで表示する -->
+  <main class="screen" id="screen">
+    <div class="shell">
+
+      <!-- メニュー(ハンバーガー) -->
+      <div class="menu-wrap">
+        <details>
+          <summary>☰</summary>
+          <div class="menu-panel">
+            <a href="index.html">⌂ ホーム</a>
+            <a href="stages.html">▦ ステージ選択</a>
+          </div>
+        </details>
+      </div>
+
+      <div class="game-layout">
+
+        <!-- 左側: ミッションと、マップ -->
+        <section class="game-left">
+          <div class="panel mission-card">
+            <div class="stage-no"><small>ステージ</small><b id="stageNo">-</b></div>
+            <div class="mission-title">
+              <h2 id="missionTitle">読み込み中…</h2>
+              <p id="missionDesc"></p>
+            </div>
+            <div class="conditions" id="conditions"></div>
+          </div>
+
+          <div class="board-panel">
+            <div class="inventory" id="inventory"></div>
+            <div class="map-wrap" id="mapWrap">
+              <!-- マップ: 縦5×横9のマスと、アリ・敵は、js/game.js が作る -->
+              <div class="map-stage" id="mapStage">
+                <div class="map-grid" id="mapGrid" aria-label="マップ"></div>
+                <div class="units" id="units"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 右側: ブロックのパレットと、プログラム -->
+        <section class="game-right">
+          <div class="right-panels">
+            <div class="panel side-panel">
+              <div class="panel-title">🧩 ブロック</div>
+              <div class="scroll-area" id="palette"></div>
+            </div>
+
+            <div class="panel side-panel program-panel">
+              <div class="panel-title">📜 プログラム</div>
+              <div class="scroll-area">
+                <div class="program-stack" id="program"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="message-bar" id="message" role="status">ブロックをドラッグして、プログラムに入れよう。(クリックでも追加できるよ)</div>
+
+          <div class="controls">
+            <button class="btn run" id="runButton" type="button">▶ 実行</button>
+            <button class="btn reset" id="resetButton" type="button">↻ やり直す</button>
+            <a class="btn stages" href="stages.html">▦ ステージ選択</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="js/common.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

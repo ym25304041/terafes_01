@@ -132,6 +132,7 @@ public final class StageRepository {
     public static Stage parse(int id, String text) {
         String name = null;
         Direction facing = Direction.RIGHT;
+        String description = "";
         boolean inMap = false;
         List<String> rows = new ArrayList<>();
 
@@ -145,6 +146,8 @@ public final class StageRepository {
                 rows.add(line);
             } else if (line.startsWith("name:")) {
                 name = line.substring("name:".length()).strip();
+            } else if (line.startsWith("description:")) {
+                description = line.substring("description:".length()).strip();
             } else if (line.startsWith("facing:")) {
                 facing = parseFacing(id, line.substring("facing:".length()).strip());
             } else if (line.equals("map:")) {
@@ -161,7 +164,7 @@ public final class StageRepository {
             throw new IllegalArgumentException("stage" + id + ".txt: map: の行がありません");
         }
 
-        Stage stage = new Stage(id, name, List.copyOf(rows), facing);
+        Stage stage = new Stage(id, name, List.copyOf(rows), facing, description);
         try {
             stage.createMap(); // マップの形式（行数・文字数・S/G）を検査する
         } catch (IllegalArgumentException e) {

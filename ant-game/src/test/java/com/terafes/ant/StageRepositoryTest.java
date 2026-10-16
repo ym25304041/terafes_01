@@ -63,6 +63,13 @@ final class StageRepositoryTest {
         T.throwsError("スタートがないと例外", IllegalArgumentException.class,
                 () -> StageRepository.parse(1, VALID.replace("S", ".")));
 
+        T.group("StageRepository: 説明（description）の解析");
+        String body = "name: x\n%smap:\nS.......G\n.........\n.........\n.........\n.........";
+        T.eq("description を読める", "ひとこと説明",
+                StageRepository.parse(1, String.format(body, "description: ひとこと説明\n")).description());
+        T.eq("description は省略できる(空文字)", "", StageRepository.parse(1, String.format(body, "")).description());
+        T.eq("前後の空白は取り除かれる", "説明", StageRepository.parse(1, String.format(body, "description:   説明  \n")).description());
+
         T.group("StageRepository: ファイルの読み込み（一時フォルダ）");
         Path tmp = Files.createTempDirectory("ant-stages");
         Path original = Path.of("src/main/webapp/WEB-INF/stages");

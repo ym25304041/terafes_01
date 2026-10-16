@@ -63,6 +63,7 @@ public class StageServlet extends HttpServlet {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("id", stage.id());
         body.put("name", stage.name());
+        body.put("description", stage.description());
         body.put("rows", stage.rows());
         body.put("start", startMap);
         body.put("facing", stage.startFacing()); // アリの最初の向き
