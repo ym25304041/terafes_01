@@ -128,7 +128,7 @@ public record RunRequest(int stageId, List<Block> program) {
                 case TURN -> {
                     return Block.turnBlock(idText, Direction.parse(asStringOrNull(map.get("dir"))));
                 }
-                case MOVE, JUMP, WAIT -> {
+                case MOVE, JUMP, WAIT, DROP -> {
                     // 向きは「今向いている方向」を使うので、方向の指定は読まない
                     return new Block(idText, type, null);
                 }

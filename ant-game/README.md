@@ -15,11 +15,12 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - 移動は1マス。壁・マップ外へは動かない（ゲームは続行、1ステップとして数える）。
 - 落とし穴へ通常移動 → 落下して失敗。
 - ジャンプ: 前方1マスが落とし穴のときだけ成功し2マス先へ着地。穴でない／着地点が壁・マップ外なら失敗（その場から動かない）。着地点が穴なら落下、ゴールならクリア。
+- **アイテムを捨てる:** 持っているアイテムを、今いるマスに置く（1ステップ。敵も動く）。置いたアイテムは、そのマスに**再び着いたとき**に自動で拾える（立ったままでは拾わない）。何も持っていないとき、今いるマスにすでにアイテムがあるときは、捨てられない（何も起きないが1ステップ進む）。
 - **向き:** アリは上下左右のどれかを向く。最初の向きはステージファイルの `facing:`（省略で右）。「移動」「ジャンプ」は**向いている方向**へ進み、向きを変えるには「向く」を使う。条件の「目の前」も向いている方向の1マス先。
 - **関数:** コマンドをまとめたブロック。**移動関数**（方向・移動回数）は「その方向を向く → 回数ぶん移動」で、`向く`と`移動`を並べたのと同じ（回数+1 ステップ）。途中で動けなくても残りの移動は続け、クリア・失敗・上限超過で止まる。
 - **時間（ターン）:** アリが1回行動（向く・移動・ジャンプ・待つ）するごとに1ステップ。動けなかった行動・ジャンプ失敗も1ステップ。順番は「アリが先 → 敵が後」。条件を調べるだけでは時間は進まない。
 - 最大100ステップ（行動の回数）。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。さらに、ブロックの実行・条件の評価・くり返しの合計が1000回を超えたら停止（`LOOP_LIMIT_EXCEEDED`。中身が空のループ対策）。
-- **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。物資と武器を別々に1つずつ持てる。同じ種類を持っているときは取得せず床に残す。
+- **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。**持てるアイテムは1つだけ**（物資か武器。スロットは1つ）。何かを持っているときは、アイテムのマスに着いても取得せず床に残す。
 - **スイッチ`a〜e`:** 物資を持って乗ると物資を消費して作動し、同じ記号のドア`A〜E`がすべて開く。物資がなければ何も起きない（通れるマス）。作動済みのスイッチは物資を消費しない。
 - **ドア:** 閉じている間は壁と同じで通れず（`BLOCKED_DOOR`）、ジャンプの着地点にもなれない。一度開いたら開いたまま。
 - **敵`X`（画面では🐍、自動戦闘）:** 敵のいる道のマスに着く（移動・ジャンプの着地）と戦闘になる。武器を持っていれば討伐して進め、敵はマップから消える（武器は減らないので何体でも倒せる）。武器がなければ敗北してゲームオーバー（`DEFEATED_BY_ENEMY`）。物資だけでは討伐できない。
@@ -96,7 +97,7 @@ S...P...G
   "program": [ {"id":"b1","type":"MOVE","dir":"RIGHT"},
                {"id":"b2","type":"JUMP","dir":"RIGHT"} ] }
 ```
-- コマンド: `TURN`（`dir`: `UP` / `DOWN` / `LEFT` / `RIGHT` を向く）、`MOVE`（向いている方向へ1マス。`dir` なし）、`JUMP`（向いている方向へジャンプ。`dir` なし）、`WAIT`（その場で1ステップ待つ）
+- コマンド: `TURN`（`dir`: `UP` / `DOWN` / `LEFT` / `RIGHT` を向く）、`MOVE`（向いている方向へ1マス。`dir` なし）、`JUMP`（向いている方向へジャンプ。`dir` なし）、`WAIT`（その場で1ステップ待つ）、`DROP`（持っているアイテムを今いるマスに捨てる。`dir` なし）
 - 関数: `MOVE_FUNCTION`（`dir`: 向く方向、`count`: 移動回数 1〜100）
   ```json
   { "id":"f", "type":"MOVE_FUNCTION", "dir":"UP", "count":3 }
@@ -117,17 +118,17 @@ S...P...G
 { "status": "CLEARED", "failReason": null, "stepCount": 7,
   "trace": [ {"step":1,"blockId":"b1","result":"MOVED","x":1,"y":2,"facing":"RIGHT",
               "events":[{"type":"PICKUP","item":"SUPPLY","x":1,"y":2}],
-              "inventory":{"supply":true,"weapon":false},
+              "heldItem":"SUPPLY",
               "enemies":[{"id":"z1","x":4,"y":1}],
               "conditions":[{"blockId":"c","value":true}]} ] }
 ```
 - `status`: `CLEARED` / `FAILED`
 - `failReason`: `FELL_INTO_PIT` / `DEFEATED_BY_ENEMY` / `NOT_REACHED_GOAL` / `STEP_LIMIT_EXCEEDED` / `LOOP_LIMIT_EXCEEDED` / null
-- `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `SWITCH_ON` / `DOOR_OPEN` / `ENEMY_DEFEATED`。x,y は起きたマス（開いたドアはドアの座標）
-- `inventory`: 行動後の持ち物
+- `events`: その行動で自動的に起きたこと。`type` は `PICKUP`(item=SUPPLY/WEAPON) / `ITEM_DROPPED`(item=捨てたアイテム) / `SWITCH_ON` / `DOOR_OPEN` / `ENEMY_DEFEATED`。x,y は起きたマス（開いたドアはドアの座標）
+- `heldItem`: 行動後に持っているアイテム（`SUPPLY` / `WEAPON` / 何も持っていなければ null）
 - `enemies`: 行動後の、生きている全ての敵の位置（敵の移動は反映済み。ID は動かない敵が `x0`…、巡回する敵が `z1`〜`z5`）
 - `conditions`: この行動の直前に評価した制御ブロックの条件と結果（画面のハイライト用）
-- `result`: `MOVED` `JUMPED` `TURNED` `WAITED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `FELL_INTO_PIT` `DEFEATED_BY_ENEMY` `REACHED_GOAL`
+- `result`: `MOVED` `JUMPED` `TURNED` `WAITED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `DROPPED` `DROP_FAILED_NO_ITEM` `DROP_FAILED_OCCUPIED` `FELL_INTO_PIT` `DEFEATED_BY_ENEMY` `REACHED_GOAL`
 - エラー: `{"error":"コード"}`（400 / 404 / 413 / 415）
 
 ## ソース構成

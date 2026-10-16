@@ -24,6 +24,8 @@ const AntApi = (() => {
     BLOCKED_DOOR: 'ドアが閉じています',
     BLOCKED_WALL: '壁があって進めません',
     BLOCKED_OUT_OF_MAP: 'マップの外には進めません',
+    DROP_FAILED_NO_ITEM: 'アイテムを持っていないので、捨てられません',
+    DROP_FAILED_OCCUPIED: 'このマスにはすでにアイテムがあるので、捨てられません',
     JUMP_FAILED_NO_PIT: 'ジャンプできません(前が落とし穴ではありません)',
     JUMP_FAILED_BLOCKED: 'ジャンプできません(着地点に進めません)'
   };

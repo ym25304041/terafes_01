@@ -8,6 +8,7 @@ package com.terafes.ant.program;
  *   MOVE  … 今向いている方向へ1マス移動する
  *   JUMP  … 今向いている方向へジャンプし、落とし穴を飛び越える
  *   WAIT  … その場で1ステップ待つ
+ *   DROP  … 持っているアイテムを、今いるマスに捨てる
  *
  * 【関数】 コマンドをまとめた、パラメータ付きのブロック。コマンドと同じように置いて使える
  *   MOVE_FUNCTION … 移動関数。「方向」と「移動回数」を指定する。
@@ -29,6 +30,8 @@ public enum BlockType {
     JUMP,
     /** その場で1ステップ待つ */
     WAIT,
+    /** 持っているアイテムを、今いるマスに捨てる */
+    DROP,
     /** もし(条件)なら…する／そうでなければ…する */
     IF,
     /** (条件)の間、し続ける */
@@ -40,7 +43,7 @@ public enum BlockType {
 
     /** 1回の実行でアリが1回だけ行動する（時間が1ステップ進む）コマンドか。 */
     public boolean isAction() {
-        return this == TURN || this == MOVE || this == JUMP || this == WAIT;
+        return this == TURN || this == MOVE || this == JUMP || this == WAIT || this == DROP;
     }
 
     /** 関数ブロックか（複数回の行動をまとめて行う）。 */

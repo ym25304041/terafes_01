@@ -125,7 +125,7 @@ public final class ProgramRunner {
                 return false;
             }
             switch (block.type()) {
-                case TURN, MOVE, JUMP, WAIT -> {
+                case TURN, MOVE, JUMP, WAIT, DROP -> {
                     return runAction(block);
                 }
                 case MOVE_FUNCTION -> {
@@ -174,6 +174,7 @@ public final class ProgramRunner {
                 case TURN -> engine.turn(block.dir());
                 case MOVE -> engine.moveForward();
                 case JUMP -> engine.jumpForward();
+                case DROP -> engine.dropItem();
                 default -> engine.waitOneTurn();
             });
         }
@@ -217,7 +218,7 @@ public final class ProgramRunner {
             steps++;
             Position pos = engine.getPosition();
             trace.add(new TraceStep(steps, blockId, result, pos.x(), pos.y(), engine.getFacing(),
-                    engine.getLastEvents(), engine.hasSupply(), engine.hasWeapon(),
+                    engine.getLastEvents(), engine.getHeldItem(),
                     engine.getEnemyStates(), List.copyOf(pendingConditions)));
             pendingConditions.clear();
 

@@ -18,6 +18,7 @@
  *     前へ移動     : {id, type:'MOVE'}          (アリが今向いている方向へ進む)
  *     前へジャンプ : {id, type:'JUMP'}
  *     待つ         : {id, type:'WAIT'}
+ *     アイテムを捨てる : {id, type:'DROP'}   (持っているアイテムを、今いるマスに置く)
  *     移動関数     : {id, type:'MOVE_FUNCTION', dir, count}  (方向を向いて、回数ぶん移動する)
  *     もし         : {id, type:'IF', condition, not, then:[...], else:[...]}
  *     の間         : {id, type:'WHILE', condition, not, body:[...]}
@@ -43,16 +44,16 @@
 
   // ブロックのパレット(グループごと)
   const PALETTE = [
-    { group: 'コマンド', items: [['TURN', '向く'], ['MOVE', '前へ移動'], ['JUMP', '前へジャンプ'], ['WAIT', '待つ']] },
+    { group: 'コマンド', items: [['TURN', '向く'], ['MOVE', '前へ移動'], ['JUMP', '前へジャンプ'], ['WAIT', '待つ'], ['DROP', 'アイテムを捨てる']] },
     { group: '関数', items: [['MOVE_FUNCTION', '移動関数']] },
     { group: '制御', items: [['IF', 'もし…なら'], ['WHILE', '…の間'], ['REPEAT', '回くり返す']] }
   ];
   const BLOCK_CLASS = {
-    TURN: 'b-turn', MOVE: 'b-move', JUMP: 'b-jump', WAIT: 'b-wait',
+    TURN: 'b-turn', MOVE: 'b-move', JUMP: 'b-jump', WAIT: 'b-wait', DROP: 'b-drop',
     MOVE_FUNCTION: 'b-func', IF: 'b-if', WHILE: 'b-while', REPEAT: 'b-repeat'
   };
   const BLOCK_ICON = {
-    TURN: '⟳', MOVE: '➡', JUMP: '⬆', WAIT: '⏳', MOVE_FUNCTION: '🏃', IF: '？', WHILE: '🔁', REPEAT: '↻'
+    TURN: '⟳', MOVE: '➡', JUMP: '⬆', WAIT: '⏳', DROP: '⤓', MOVE_FUNCTION: '🏃', IF: '？', WHILE: '🔁', REPEAT: '↻'
   };
 
   const stageId = AntUi.intParam('stage', 1, 9999, 1);
@@ -65,7 +66,8 @@
   const unitsEl = $('units');
   const programEl = $('program');
   const messageEl = $('message');
-  const inventoryEl = $('inventory');
+  const heldSlot = $('heldSlot');
+  const clearButton = $('clearButton');
   const runButton = $('runButton');
 
   // 状態
@@ -75,14 +77,15 @@
   let cellEls = [];          // マスの要素(cellEls[y][x])
   let antEl = null;          // アリロボットの要素
   let enemyEls = new Map();  // 敵のID → 敵の要素
-  let inventory = { supply: false, weapon: false };
+  let held = null;           // 持っているアイテム(1つだけ。'SUPPLY' / 'WEAPON' / なければ null)
+  let floorItems = [];       // 床に置かれているアイテム(floorItems[y][x] = 'supply' / 'weapon' / null)
   let facing = 'RIGHT';      // 画面に表示するアリの向き
   let program = [];          // プログラム(ブロックの配列。入れ子)
   let target = program;      // 次にブロックを追加する先の配列(選んだ枠)
   let nextBlockNo = 1;       // ブロックIDの連番
   let blockEls = new Map();  // ブロックID → 画面上のブロックの行(ハイライト用)
   let playing = false;       // 再生中か
-  let runToken = 0;          // 実行の番号。「やり直す」で番号を進めて、再生を打ち切る
+  let runToken = 0;          // 実行の番号。新しい実行が始まったとき、古い再生を打ち切るために使う
 
   function showMessage(text, kind) {
     messageEl.textContent = text;
@@ -113,8 +116,8 @@
     const ch = view[y][x];
     cell.textContent = '';
     cell.appendChild(AntAssets.tile(tileKeyOf(ch)));
-    if (ch === 'M') { cell.appendChild(AntAssets.item('supply')); }
-    if (ch === 'W') { cell.appendChild(AntAssets.item('weapon')); }
+    // 床のアイテム(最初から置いてあるものと、捨てたもの)
+    if (floorItems[y][x]) { cell.appendChild(AntAssets.item(floorItems[y][x])); }
     const letter = letters[y][x];
     if (letter) {
       // スイッチとドアは、対応する記号(A〜E)を、バッジで表示する
@@ -183,7 +186,9 @@
   /** ステージの最初の状態に戻す(マップ・アリ・敵・持ち物)。 */
   function resetBoard() {
     // 動かない敵 'X' は道として扱い、敵は enemies の位置から別に描く
-    view = stage.rows.map((row) => row.replace(/X/g, '.').split(''));
+    view = stage.rows.map((row) => row.replace(/[XMW]/g, '.').split(''));
+    // アイテムは、地形とは別に、床のアイテムとして覚える(M=物資、W=武器)
+    floorItems = stage.rows.map((row) => row.split('').map((ch) => (ch === 'M' ? 'supply' : ch === 'W' ? 'weapon' : null)));
     letters = stage.rows.map((row) => row.split('').map((ch) => {
       if (ch >= 'a' && ch <= 'e') { return ch; }
       if (ch >= 'A' && ch <= 'E') { return ch.toLowerCase(); }
@@ -211,40 +216,32 @@
       enemyEls.set(e.id, el);
     });
 
-    inventory = { supply: false, weapon: false };
-    drawInventory();
+    held = null;
+    drawHeld();
   }
 
-  /** 持ち物(物資・武器)の表示を更新する。持っているものは明るく表示する。 */
-  function drawInventory() {
-    inventoryEl.textContent = '';
-    [['supply', '物資'], ['weapon', '武器']].forEach(([kind, label]) => {
-      const slot = AntUi.el('div', 'inv-slot' + (inventory[kind] ? ' have' : ''));
-      slot.appendChild(AntAssets.item(kind));
-      slot.appendChild(AntUi.el('span', null, label));
-      inventoryEl.appendChild(slot);
-    });
-    inventoryEl.appendChild(AntUi.el('span', null, '向き ' + DIR_ARROW[facing]));
+  /** もちもの枠の表示を更新する。持てるアイテムは1つだけ。持っていなければ「なし」と表示する。 */
+  function drawHeld() {
+    heldSlot.textContent = '';
+    heldSlot.classList.toggle('have', held !== null);
+    if (held === null) {
+      heldSlot.title = 'なし';
+      heldSlot.appendChild(AntUi.el('span', null, 'なし'));
+      return;
+    }
+    heldSlot.appendChild(AntAssets.item(held.toLowerCase()));
+    heldSlot.title = held === 'SUPPLY' ? '物資' : '武器'; // 画像にマウスを重ねると名前が出る
   }
 
   /** 自動で起きた出来事(アイテム取得・スイッチ作動・ドアが開く)を、マップの表示に反映する。 */
   function applyEvents(events) {
     events.forEach((e) => {
-      if (e.type === 'PICKUP') { view[e.y][e.x] = '.'; updateCell(e.x, e.y); }
+      if (e.type === 'PICKUP') { floorItems[e.y][e.x] = null; updateCell(e.x, e.y); }
+      if (e.type === 'ITEM_DROPPED') { floorItems[e.y][e.x] = e.item.toLowerCase(); updateCell(e.x, e.y); }
       if (e.type === 'SWITCH_ON') { view[e.y][e.x] = '!'; updateCell(e.x, e.y); }
       if (e.type === 'DOOR_OPEN') { view[e.y][e.x] = '_'; updateCell(e.x, e.y); }
       // 敵の討伐は、敵の位置の一覧から、倒された敵がいなくなることで表現される
     });
-  }
-
-  /** ステージのマップから、クリア条件の説明を作る。 */
-  function conditionTexts() {
-    const text = stage.rows.join('');
-    const list = ['ゴールに到達する'];
-    if (/[X1-5]/.test(text)) { list.push('敵にやられない(武器を使おう)'); }
-    if (/[a-e]/.test(text)) { list.push('物資でスイッチを押してドアを開ける'); }
-    if (/P/.test(text) && list.length < 3) { list.push('落とし穴に落ちない'); }
-    return list.slice(0, 3);
   }
 
   /** ミッションの表示(ステージ番号・名前・説明・クリア条件)。 */
@@ -252,10 +249,6 @@
     $('stageNo').textContent = String(stage.id);
     $('missionTitle').textContent = stage.name;
     $('missionDesc').textContent = stage.description || 'アリロボットを動かして、ゴールを目指そう。';
-    const box = $('conditions');
-    box.textContent = '';
-    box.appendChild(AntUi.el('div', null, '⭐ クリア条件'));
-    conditionTexts().forEach((t) => box.appendChild(AntUi.el('div', null, '○ ' + t)));
   }
 
   // ======================================================================
@@ -418,6 +411,7 @@
       case 'MOVE': text('前へ移動'); break;
       case 'JUMP': text('前へジャンプ'); break;
       case 'WAIT': text('待つ'); break;
+      case 'DROP': text('アイテムを捨てる'); break;
       case 'MOVE_FUNCTION':
         text('移動関数(');
         line.appendChild(dirSelect(b.dir, (v) => { b.dir = v; }));
@@ -496,9 +490,11 @@
     head.addEventListener('click', () => selectTarget(program));
     programEl.appendChild(head);
     programEl.appendChild(buildList(program));
-    if (program.length === 0) {
-      programEl.appendChild(AntUi.el('div', 'empty-hint', 'ブロックをここにドラッグしてね'));
-    }
+    // プログラムの最後へドロップするための領域(ブロックの下の空き全体)。ここにドロップすると、最後に入る
+    const endZone = AntUi.el('div', 'end-zone',
+      program.length === 0 ? 'ブロックをここにドラッグしてね' : 'ここにドロップすると、最後に入る');
+    enableDrop(endZone, program, null);
+    programEl.appendChild(endZone);
   }
 
   /** ブロックの追加先(枠)を切り替える。 */
@@ -550,7 +546,7 @@
   function playStep(t) {
     highlight(t.blockId, t.conditions);
     applyEvents(t.events);
-    inventory = t.inventory;
+    held = t.heldItem;
 
     // アリ
     placeUnit(antEl, t.x, t.y);
@@ -568,7 +564,7 @@
     if (t.result === 'DEFEATED_BY_ENEMY') {
       antEl.classList.add('hit');
     }
-    drawInventory();
+    drawHeld();
     if (AntApi.RESULT_NOTE[t.result]) { showMessage(AntApi.RESULT_NOTE[t.result]); }
   }
 
@@ -587,7 +583,7 @@
     showMessage('実行中…');
 
     const res = await AntApi.run(stage.id, program);
-    if (token !== runToken) { return; } // 「やり直す」が押された
+    if (token !== runToken) { return; } // 別の実行が始まった(古い再生は打ち切る)
     if (!res.ok) {
       showMessage(AntApi.errorText(res.error), 'ng');
       playing = false;
@@ -614,15 +610,13 @@
     }
   }
 
-  /** 「やり直す」: 再生を止めて、ステージの最初の状態に戻す(プログラムはそのまま残す)。 */
-  function onReset() {
-    if (!stage) { return; }
-    runToken++;
-    playing = false;
-    runButton.disabled = false;
-    resetBoard();
+  /** 「クリア」: プログラムのブロックを、すべて消す(再生中は押せない)。 */
+  function onClear() {
+    if (playing) { return; }
+    program = [];
+    target = program;
     renderProgram();
-    showMessage('最初の状態に戻したよ。');
+    showMessage('プログラムを空にしたよ。');
   }
 
   // ======================================================================
@@ -638,7 +632,7 @@
     new ResizeObserver(fitMap).observe(mapWrap);
 
     runButton.addEventListener('click', onRun);
-    $('resetButton').addEventListener('click', onReset);
+    clearButton.addEventListener('click', onClear);
 
     const res = await AntApi.getStage(stageId);
     if (!res.ok) {
