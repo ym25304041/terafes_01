@@ -14,7 +14,7 @@ const AntApi = (() => {
     FELL_INTO_PIT: '落とし穴に落ちてしまった…',
     DEFEATED_BY_ENEMY: '武器を持たずに敵と戦い、負けてしまった…',
     NOT_REACHED_GOAL: 'ゴールにたどり着けなかった…',
-    STEP_LIMIT_EXCEEDED: '実行回数の上限(100回)を超えたので、止めたよ。',
+    STEP_LIMIT_EXCEEDED: '実行回数の上限(50回)を超えたので、止めたよ。',
     LOOP_LIMIT_EXCEEDED: '処理回数の上限(1000回)を超えたので、止めたよ。(中身が空のくり返しなど)'
   };
   const FAIL_CODES = Object.keys(FAIL_MESSAGE);

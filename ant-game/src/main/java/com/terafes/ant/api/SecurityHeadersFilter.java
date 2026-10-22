@@ -1,5 +1,6 @@
 package com.terafes.ant.api;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,8 +25,11 @@ import java.io.IOException;
  *   Cache-Control          : ブラウザが古い画面ファイル(js・css・html)を使い続けないよう、
  *                            毎回サーバーに更新の有無を確認させる(再デプロイ後に古い画面が残る問題の対策)。
  *                            API のレスポンスでは、別途 no-store を指定して上書きする。
+ *
+ * エラーのとき(404・405・500 など、web.xml の error-page で /error へ回されたとき)にも、
+ * 同じヘッダーを付けるため、ERROR のリクエストにも適用します。
  */
-@WebFilter("/*")
+@WebFilter(urlPatterns = "/*", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.ERROR})
 public class SecurityHeadersFilter implements Filter {
 
     @Override

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tomcat 側の設定(推奨)。 conf/server.xml に、次の2か所を反映してください。(WAR には含まれません)
+
+  【なぜ必要か】
+  URL に使えない文字(クエリの \ { } < > など、パスの %00 や \ )を含むリクエストは、
+  アプリに届く前に Tomcat 自身が 400 で断ります。このとき、
+    ・Tomcat の標準のエラーページ(バージョンや例外のスタックトレースが出る)になる
+    ・アプリのセキュリティヘッダー(Referrer-Policy など)が付かない
+  という問題があります。次の設定で、
+    1) クエリの文字は、アプリまで通す(アプリ側で検査し、400 のJSONとヘッダー付きで返す)
+    2) Tomcat が断るリクエストでも、標準のエラーページの代わりに error.html を返す(詳細は出さない)
+  にします。
+
+  【手順】
+  1. この error.html を、<CATALINA_BASE>/conf/error.html にコピーする。
+  2. server.xml の Connector と Host を、下のように直す。
+  3. Tomcat を再起動する。
+
+  【注意】
+  パスの不正な文字(%00 や \ )や、壊れたリクエストは、アプリに届く前に Tomcat が断るため、
+  セキュリティヘッダーは付けられません(標準のエラーページの代わりに error.html を返します)。
+-->
+<Server>
+  <Service name="Catalina">
+
+    <!-- (1) Connector に relaxedQueryChars を追加(クエリの " < > [ \ ] ^ ` { | } をアプリまで通す) -->
+    <Connector port="8080" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               redirectPort="8443"
+               relaxedQueryChars="&quot;&lt;&gt;[\]^`{|}" />
+
+    <Engine name="Catalina" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps" unpackWARs="true" autoDeploy="true">
+
+        <!-- (2) Host に ErrorReportValve を追加(標準のエラーページの代わりに conf/error.html を返す) -->
+        <Valve className="org.apache.catalina.valves.ErrorReportValve"
+               showReport="false" showServerInfo="false"
+               errorCode.0="conf/error.html" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>

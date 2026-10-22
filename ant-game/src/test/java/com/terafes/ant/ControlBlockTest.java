@@ -137,9 +137,9 @@ final class ControlBlockTest {
 
         r = ProgramRunner.run(stage1, List.of(
                 Block.whileBlock("wh", ConditionType.WALL_AHEAD, true, List.of(Block.waitBlock("w")))));
-        T.eq("待ち続けるループはステップ数の上限(100)で止まる", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
-        T.eq("ステップ数は100", 100, r.stepCount());
-        T.eq("トレースも100件", 100, r.trace().size());
+        T.eq("待ち続けるループはステップ数の上限(50)で止まる", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
+        T.eq("ステップ数は50", 50, r.stepCount());
+        T.eq("トレースも50件", 50, r.trace().size());
 
         r = ProgramRunner.run(stage1, List.of(Block.repeatBlock("a", 100, List.of(
                 Block.repeatBlock("b", 100, List.of(Block.repeatBlock("c", 100, List.of())))))));

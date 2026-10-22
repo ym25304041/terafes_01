@@ -13,7 +13,7 @@ import com.terafes.ant.program.RunResult;
 import java.util.ArrayList;
 import java.util.List;
 
-/** ProgramRunner（ブロックの連続実行・100ステップ制限）のテストです。 */
+/** ProgramRunner（ブロックの連続実行・50ステップ制限）のテストです。 */
 final class ProgramRunnerTest {
 
     /** ブロックを簡単に作るための補助メソッド */
@@ -93,20 +93,21 @@ final class ProgramRunnerTest {
         T.eq("落下した時点で止まる(4ステップ目)", 4, r.stepCount());
         T.eq("落下の結果が記録される", ActionResult.FELL_INTO_PIT, r.trace().get(3).result());
 
-        T.group("ProgramRunner: 最大ステップ数(100回)の制限");
-        // 待つを150回並べる。ゴールには着かないまま100を超える
+        T.group("ProgramRunner: 最大ステップ数(50回)の制限");
+        // 待つを150回並べる。ゴールには着かないまま50を超える
         List<Block> longProgram = new ArrayList<>();
         for (int i = 0; i < 150; i++) {
             longProgram.add(Block.waitBlock("c" + i));
         }
         r = ProgramRunner.run(stage1, longProgram);
-        T.eq("101個目以降は実行されず失敗", GameStatus.FAILED, r.status());
+        T.eq("51個目以降は実行されず失敗", GameStatus.FAILED, r.status());
         T.eq("理由はステップ上限超過", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
-        T.eq("ステップ数は100で止まる", 100, r.stepCount());
-        T.eq("トレースも100件", 100, r.trace().size());
+        T.eq("ステップ数は50で止まる", 50, r.stepCount());
+        T.eq("トレースも50件", 50, r.trace().size());
 
-        // ちょうど100個ならば上限超過にはならない
-        r = ProgramRunner.run(stage1, longProgram.subList(0, 100));
-        T.eq("ちょうど100個は上限超過ではない", ProgramRunner.FAIL_NOT_REACHED_GOAL, r.failReason());
+        // ちょうど50個ならば上限超過にはならない
+        r = ProgramRunner.run(stage1, longProgram.subList(0, 50));
+        T.eq("ちょうど50個は上限超過ではない", ProgramRunner.FAIL_NOT_REACHED_GOAL, r.failReason());
+        T.eq("ちょうど50個ならステップ数は50", 50, r.stepCount());
     }
 }
