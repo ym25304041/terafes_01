@@ -165,8 +165,8 @@ final class FacingTest {
         T.eq("向く1 + 移動8 = 9ステップ", 9, r.stepCount());
 
         r = ProgramRunner.run(winding, List.of(Block.moveFunction("f", Direction.RIGHT, 100)));
-        T.eq("関数でもステップ数の上限(100)で止まる", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
-        T.eq("ステップ数は100", 100, r.stepCount());
+        T.eq("関数でもステップ数の上限(50)で止まる", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
+        T.eq("ステップ数は50", 50, r.stepCount());
 
         r = ProgramRunner.run(straight, List.of(
                 Block.repeatBlock("rep", 2, List.of(Block.moveFunction("f", Direction.RIGHT, 2)))));

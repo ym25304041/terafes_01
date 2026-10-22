@@ -35,7 +35,7 @@
 
   if (isClear) {
     // 実行回数(クリアまでにかかったステップ数)を表示する
-    const steps = AntUi.intParam('steps', 0, 100, 0);
+    const steps = AntUi.intParam('steps', 0, 50, 0);
     info.textContent = 'ステージ ' + stageId + '　実行回数: ' + steps + ' 回';
 
     // 「次のステージへ」: 次のステージがあればそのステージへ、なければステージ選択へ

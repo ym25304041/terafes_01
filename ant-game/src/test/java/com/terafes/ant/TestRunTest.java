@@ -84,7 +84,7 @@ final class TestRunTest {
         r = ProgramRunner.run(TestStages.stage(1), List.of(
                 Block.whileBlock("w", ConditionType.WALL_AHEAD, true, List.of(Block.waitBlock("x")))), false);
         T.eq("ステップ数の上限は、テスト実行でも有効", ProgramRunner.FAIL_STEP_LIMIT, r.failReason());
-        T.eq("100ステップで止まる", 100, r.stepCount());
+        T.eq("50ステップで止まる", 50, r.stepCount());
 
         T.group("テスト実行: RunRequest（testRun の指定）");
         T.check("省略すると通常の実行", !RunRequest.parse("{\"stageId\":1,\"program\":[]}").testRun());

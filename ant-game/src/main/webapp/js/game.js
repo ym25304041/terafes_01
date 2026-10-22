@@ -488,6 +488,12 @@
       program.length === 0 ? 'ブロックをここにドラッグしてね' : 'ここにドロップすると、最後に入る');
     enableDrop(endZone, program, null);
     programEl.appendChild(endZone);
+    lockSettings();
+  }
+
+  /** 再生中は、ブロックの設定欄(方向・条件・回数)を変更できないようにする。 */
+  function lockSettings() {
+    programEl.querySelectorAll('select, input').forEach((el) => { el.disabled = playing; });
   }
 
   /** ブロックの追加先(枠)を切り替える。 */
@@ -632,6 +638,7 @@
   function setRunButtons(enabled) {
     runButton.disabled = !enabled;
     testButton.disabled = !enabled;
+    lockSettings(); // 再生が終わったら(playing が false に戻ったあと)、設定欄も操作できるようにする
   }
 
   /** 「クリア」: プログラムのブロックを、すべて消す(再生中は押せない)。 */

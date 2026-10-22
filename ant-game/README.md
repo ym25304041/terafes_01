@@ -19,7 +19,7 @@ build.bat     … ビルドのみ。build\ant-game.war ができる
 - **向き:** アリは上下左右のどれかを向く。最初の向きはステージファイルの `facing:`（省略で右）。「移動」「ジャンプ」は**向いている方向**へ進み、向きを変えるには「向く」を使う。条件の「目の前」も向いている方向の1マス先。
 - **関数:** コマンドをまとめたブロック。**移動関数**（方向・移動回数）は「その方向を向く → 回数ぶん移動」で、`向く`と`移動`を並べたのと同じ（回数+1 ステップ）。途中で動けなくても残りの移動は続け、クリア・失敗・上限超過で止まる。
 - **時間（ターン）:** アリが1回行動（向く・移動・ジャンプ・待つ）するごとに1ステップ。動けなかった行動・ジャンプ失敗も1ステップ。順番は「アリが先 → 敵が後」。条件を調べるだけでは時間は進まない。
-- 最大100ステップ（行動の回数）。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。さらに、ブロックの実行・条件の評価・くり返しの合計が1000回を超えたら停止（`LOOP_LIMIT_EXCEEDED`。中身が空のループ対策）。
+- 最大50ステップ（行動の回数）。超えたら強制停止（`STEP_LIMIT_EXCEEDED`）。さらに、ブロックの実行・くり返しの周回の合計が1000回を超えたら停止（`LOOP_LIMIT_EXCEEDED`。中身が空のループ対策。条件の評価そのものは数えない）。
 - **アイテム（自動取得）:** 物資`M`・武器`W`のマスに着くと自動で取得し、マスから消える。**持てるアイテムは1つだけ**（物資か武器。スロットは1つ）。何かを持っているときは、アイテムのマスに着いても取得せず床に残す。
 - **スイッチ`a〜e`:** 物資を持って乗ると物資を消費して作動し、同じ記号のドア`A〜E`がすべて開く。物資がなければ何も起きない（通れるマス）。作動済みのスイッチは物資を消費しない。
 - **ドア:** 閉じている間は壁と同じで通れず（`BLOCKED_DOOR`）、ジャンプの着地点にもなれない。一度開いたら開いたまま。
@@ -131,7 +131,7 @@ S...P...G
 - `enemies`: 行動後の、生きている全ての敵の位置（敵の移動は反映済み。ID は動かない敵が `x0`…、巡回する敵が `z1`〜`z5`）
 - `conditions`: この行動の直前に評価した制御ブロックの条件と結果（画面のハイライト用）
 - `result`: `MOVED` `JUMPED` `TURNED` `WAITED` `BLOCKED_WALL` `BLOCKED_DOOR` `BLOCKED_OUT_OF_MAP` `JUMP_FAILED_NO_PIT` `JUMP_FAILED_BLOCKED` `DROPPED` `DROP_FAILED_NO_ITEM` `DROP_FAILED_OCCUPIED` `FELL_INTO_PIT` `DEFEATED_BY_ENEMY` `REACHED_GOAL`
-- エラー: `{"error":"コード"}`（400 / 404 / 413 / 415）
+- エラー: `{"error":"コード"}`（400 / 404 / 413 / 415）。`/api/` 配下で起きた 400 / 404 / 405 / 500 も、同じ形の JSON で返す（コードは `BAD_REQUEST` / `NOT_FOUND` / `METHOD_NOT_ALLOWED` / `INTERNAL_ERROR`。`ErrorServlet`）。
 
 ## ソース構成
 ```
@@ -139,16 +139,18 @@ src/main/java/com/terafes/ant/
   game/     Direction, Position, CellType, GameMap, GameEngine, Stage, StageRepository(ファイル読込) …ゲームのルール
   program/  Block, BlockType, ProgramRunner, RunResult, TraceStep …プログラムの実行
   json/     JsonParser, JsonWriter …自作の最小JSON処理
-  api/      RunServlet, StageServlet, StagesServlet, RunRequest, SecurityHeadersFilter …HTTP入出力と入力検証
+  api/      RunServlet, StageServlet, StagesServlet, ErrorServlet, RunRequest, SecurityHeadersFilter …HTTP入出力と入力検証
 src/main/webapp/   画面（index/stages/game/result-clear/result-fail.html, js/, css/game.css, assets/）
 src/test/java/     自作の簡易テスト（TestMain から実行）
 ```
 
 ## セキュリティ対策
 - **XSS**: JSON出力は `< > & '` を `\uXXXX` にエスケープ／`X-Content-Type-Options: nosniff`／CSP（自サイトのスクリプトのみ）／画面側は `textContent` のみ使用／ブロックIDは英数字のみ許可／エラーに入力値を含めない。
-- **入力検証**: ステージID・種別・方向はホワイトリスト、本文64KB・ブロック200個・JSON深さ20の上限、ステップ100回の強制停止。
+- **入力検証**: ステージID・種別・方向はホワイトリスト、本文64KB・ブロック200個・JSON深さ20の上限、ステップ50回の強制停止。
+- **エラーページ**: Tomcat の標準のエラーページ（バージョンや例外の詳細が出る）は使わない。`web.xml` の `error-page` で `ErrorServlet`（`/error`）へ回し、API は JSON、画面は日本語のページを返す。エラーのときにも、`SecurityHeadersFilter` がセキュリティヘッダーを付ける。
+- **Tomcat側の設定（推奨）**: `tomcat/server-snippet.xml` を参照。URL に使えない文字（クエリの `\` `{` `<` など）を含むリクエストは、アプリに届く前に Tomcat が断るため、`relaxedQueryChars` と `ErrorReportValve` の設定が必要。設定すると、クエリの文字はアプリまで届き、`400 INVALID_*` の JSON とセキュリティヘッダー付きで返る。パスに不正な文字（`%00`、`\` など）を含むリクエストは、設定しても Tomcat が断る（専用の `tomcat/error.html` を返す。セキュリティヘッダーは付かない）。
 - **SQLインジェクション**: DBを使わないため該当なし（将来DBを使う場合は `PreparedStatement` を使うこと）。
 
 ## 今後の拡張ポイント
 - 敵の種類・強さ、武器の種類・耐久: 現在は「武器の有無」のみで判定している（`GameEngine.fightEnemy`）。
-- 制御ブロック（もし／繰り返し）: `BlockType` と `Block` を拡張し、`ProgramRunner` でネストを展開しつつ、同じ100ステップ制限を適用。
+- 制御ブロック（もし／繰り返し）: `BlockType` と `Block` を拡張し、`ProgramRunner` でネストを展開しつつ、同じ50ステップ制限を適用。
