@@ -6,7 +6,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.annotation.WebFilter;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
@@ -33,11 +32,8 @@ public class SecurityHeadersFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         if (response instanceof HttpServletResponse resp) {
-            // 【一時的な設定】game.html だけは、ページの中に CSS(<style>)を書いているため、style-src を緩める。
-            // CSS を css フォルダのファイルへ移したら、この例外は削除すること。
-            String styleSrc = isGamePage(request) ? "'self' 'unsafe-inline'" : "'self'";
             resp.setHeader("Content-Security-Policy",
-                    "default-src 'self'; script-src 'self'; style-src " + styleSrc + "; "
+                    "default-src 'self'; script-src 'self'; style-src 'self'; "
                             + "img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'");
             resp.setHeader("X-Content-Type-Options", "nosniff");
             resp.setHeader("X-Frame-Options", "DENY");
@@ -46,10 +42,5 @@ public class SecurityHeadersFilter implements Filter {
         }
         // 次の処理（別のフィルターまたは Servlet）へ進む
         chain.doFilter(request, response);
-    }
-
-    /** リクエストが game.html（ゲームプレイ画面）へのものか。 */
-    private static boolean isGamePage(ServletRequest request) {
-        return request instanceof HttpServletRequest req && req.getRequestURI().endsWith("/game.html");
     }
 }
